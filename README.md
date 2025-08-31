@@ -5,7 +5,8 @@
 **请注意：** 请将 `your-username` 替换为您的 GitHub 用户名。
 
 <!-- 在此处添加您的应用截图 -->
-![应用截图](placeholder.png)
+应用截图
+![alt text](image.png)
 
 ## ✨ 功能特性
 
