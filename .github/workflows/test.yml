@@ -23,8 +23,9 @@ jobs:
         with:
           node-version: '20'
       - name: Install dependencies
-        working-directory: ./prompt-tools
-        run: npm ci
+        run: |
+          cd prompt-tools
+          npm ci
       - name: Lint (non-blocking)
         working-directory: ./prompt-tools
         run: npm run lint || true
@@ -51,13 +52,16 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-cargo-
       - name: Run Rust tests
-        working-directory: ./prompt-tools/src-tauri
-        run: cargo test
+        run: |
+          cd prompt-tools/src-tauri
+          cargo test
       - name: Run Rust clippy
-        working-directory: ./prompt-tools/src-tauri
-        run: cargo clippy -- -D warnings
+        run: |
+          cd prompt-tools/src-tauri
+          cargo clippy -- -D warnings
         continue-on-error: true
       - name: Check Rust formatting
-        working-directory: ./prompt-tools/src-tauri
-        run: cargo fmt --check
+        run: |
+          cd prompt-tools/src-tauri
+          cargo fmt --check
         continue-on-error: true

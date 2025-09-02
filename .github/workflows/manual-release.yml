@@ -43,8 +43,9 @@ jobs:
         with:
           node-version: '20'
       - name: Install dependencies
-        working-directory: ./prompt-tools
-        run: npm ci
+        run: |
+          cd prompt-tools
+          npm ci
 
       - name: Install system deps for Linux (Ubuntu 22.04)
         if: ${{ matrix.os == 'ubuntu-22.04' }}
@@ -72,8 +73,9 @@ jobs:
             ${{ runner.os }}-cargo-
 
       - name: Build Tauri app
-        working-directory: ./prompt-tools
-        run: npm run tauri build
+        run: |
+          cd prompt-tools
+          npm run tauri build
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
