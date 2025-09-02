@@ -96,6 +96,33 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-cargo-
 
+      - name: Extract version from tag
+        shell: bash
+        run: |
+          VERSION=${GITHUB_REF#refs/tags/v}
+          echo "VERSION=$VERSION" >> $GITHUB_ENV
+          echo "Extracted version: $VERSION"
+
+      - name: Update version in tauri.conf.json
+        shell: bash
+        run: |
+          if [[ "$RUNNER_OS" == "macOS" ]]; then
+            sed -i '' "s/\"version\": \".*\"/\"version\": \"$VERSION\"/" src-tauri/tauri.conf.json
+          else
+            sed -i "s/\"version\": \".*\"/\"version\": \"$VERSION\"/" src-tauri/tauri.conf.json
+          fi
+          echo "Updated tauri.conf.json version to: $VERSION"
+
+      - name: Update version in Cargo.toml
+        shell: bash
+        run: |
+          if [[ "$RUNNER_OS" == "macOS" ]]; then
+            sed -i '' "s/^version = \".*\"/version = \"$VERSION\"/" src-tauri/Cargo.toml
+          else
+            sed -i "s/^version = \".*\"/version = \"$VERSION\"/" src-tauri/Cargo.toml
+          fi
+          echo "Updated Cargo.toml version to: $VERSION"
+
       - name: Build Tauri app
         run: pnpm tauri build
         env:
