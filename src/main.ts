@@ -49,6 +49,12 @@ function bindEvents() {
   document.getElementById('cancelBtn')?.addEventListener('click', closeModal);
   document.querySelector('.modal-overlay')?.addEventListener('click', closeModal);
   document.getElementById('promptForm')?.addEventListener('submit', handleFormSubmit);
+  
+  // 详情页面模态框
+  document.getElementById('closeDetailModal')?.addEventListener('click', closeDetailModal);
+  document.querySelector('#detailModal')?.addEventListener('click', (e) => {
+    if (e.target === e.currentTarget) closeDetailModal();
+  });
 }
 
 // 加载提示词
@@ -87,22 +93,22 @@ function renderPrompts(prompts: any[]) {
   }
   
   promptList.innerHTML = prompts.map(prompt => `
-    <div class="prompt-card" data-id="${prompt.id}">
+    <div class="prompt-card" data-id="${prompt.id}" onclick="showPromptDetail(${prompt.id})">
       ${prompt.pinned ? '<div class="pin-indicator"><i class="fas fa-thumbtack"></i></div>' : ''}
       
       <div class="card-header">
         <h3 class="card-title">${prompt.name}</h3>
         <div class="card-actions">
-          <button class="btn btn-icon" onclick="togglePin(${prompt.id})" title="${prompt.pinned ? '取消置顶' : '置顶'}">
+          <button class="btn btn-icon" onclick="event.stopPropagation(); togglePin(${prompt.id})" title="${prompt.pinned ? '取消置顶' : '置顶'}">
             <i class="fas fa-thumbtack ${prompt.pinned ? 'pinned' : ''}"></i>
           </button>
-          <button class="btn btn-icon" onclick="copyPrompt(${prompt.id})" title="复制">
+          <button class="btn btn-icon" onclick="event.stopPropagation(); copyPrompt(${prompt.id})" title="复制">
             <i class="fas fa-copy"></i>
           </button>
-          <button class="btn btn-icon" onclick="editPrompt(${prompt.id})" title="编辑">
+          <button class="btn btn-icon" onclick="event.stopPropagation(); editPrompt(${prompt.id})" title="编辑">
             <i class="fas fa-edit"></i>
           </button>
-          <button class="btn btn-icon" onclick="deletePrompt(${prompt.id})" title="删除">
+          <button class="btn btn-icon" onclick="event.stopPropagation(); deletePrompt(${prompt.id})" title="删除">
             <i class="fas fa-trash"></i>
           </button>
         </div>
@@ -348,7 +354,107 @@ async function handleFormSubmit(e: Event) {
   }
 }
 
+// 显示提示词详情页面
+function showPromptDetail(id: number) {
+  const prompt = currentPrompts.find(p => p.id === id);
+  if (!prompt) return;
+  
+  const detailModal = document.getElementById('detailModal');
+  const detailName = document.getElementById('detailName');
+  const detailSource = document.getElementById('detailSource');
+  const detailSourceItem = document.getElementById('detailSourceItem');
+  const detailUpdatedAt = document.getElementById('detailUpdatedAt');
+  const detailTags = document.getElementById('detailTags');
+  const detailTagsContainer = document.getElementById('detailTagsContainer');
+  const detailContent = document.getElementById('detailContent');
+  const detailNotes = document.getElementById('detailNotes');
+  const detailNotesContainer = document.getElementById('detailNotesContainer');
+  const detailPinBtn = document.getElementById('detailPinBtn');
+  const detailPinText = document.getElementById('detailPinText');
+  
+  if (!detailModal) return;
+  
+  // 填充详情信息
+  if (detailName) detailName.textContent = prompt.name;
+  if (detailSource) detailSource.textContent = prompt.source || '';
+  if (detailUpdatedAt) detailUpdatedAt.textContent = formatDate(prompt.updated_at);
+  if (detailContent) detailContent.textContent = prompt.content;
+  if (detailNotes) detailNotes.textContent = prompt.notes || '';
+  
+  // 处理来源显示
+  if (detailSourceItem) {
+    detailSourceItem.style.display = prompt.source ? 'flex' : 'none';
+  }
+  
+  // 处理标签显示
+  if (detailTags && detailTagsContainer) {
+    if (prompt.tags && prompt.tags.length > 0) {
+      detailTags.innerHTML = prompt.tags.map((tag: string) => 
+        `<span class="tag">${tag}</span>`
+      ).join('');
+      detailTagsContainer.style.display = 'block';
+    } else {
+      detailTagsContainer.style.display = 'none';
+    }
+  }
+  
+  // 处理备注显示
+  if (detailNotesContainer) {
+    detailNotesContainer.style.display = prompt.notes ? 'block' : 'none';
+  }
+  
+  // 更新置顶按钮状态
+  if (detailPinText) {
+    detailPinText.textContent = prompt.pinned ? '取消置顶' : '置顶';
+  }
+  if (detailPinBtn) {
+    detailPinBtn.className = prompt.pinned ? 'btn btn-outline pinned' : 'btn btn-outline';
+  }
+  
+  // 绑定详情页面的按钮事件
+  const detailCopyBtn = document.getElementById('detailCopyBtn');
+  const detailEditBtn = document.getElementById('detailEditBtn');
+  
+  if (detailCopyBtn) {
+    detailCopyBtn.onclick = () => (window as any).copyPrompt(prompt.id);
+  }
+  
+  if (detailEditBtn) {
+    detailEditBtn.onclick = () => {
+      closeDetailModal();
+      (window as any).editPrompt(prompt.id);
+    };
+  }
+  
+  if (detailPinBtn) {
+    detailPinBtn.onclick = async () => {
+      await (window as any).togglePin(prompt.id);
+      // 更新详情页面的置顶状态
+      const updatedPrompt = currentPrompts.find(p => p.id === id);
+      if (updatedPrompt && detailPinText) {
+        detailPinText.textContent = updatedPrompt.pinned ? '取消置顶' : '置顶';
+        detailPinBtn.className = updatedPrompt.pinned ? 'btn btn-outline pinned' : 'btn btn-outline';
+      }
+    };
+  }
+  
+  // 显示模态框
+  detailModal.classList.add('show');
+  document.body.style.overflow = 'hidden';
+}
+
+// 关闭详情页面模态框
+function closeDetailModal() {
+  const detailModal = document.getElementById('detailModal');
+  if (detailModal) {
+    detailModal.classList.remove('show');
+    document.body.style.overflow = '';
+  }
+}
+
 // 全局函数 - 确保这些函数在全局作用域中可用
+(window as any).showPromptDetail = showPromptDetail;
+
 (window as any).copyPrompt = async (id: number) => {
   try {
     const prompt = currentPrompts.find(p => p.id === id);
@@ -579,7 +685,11 @@ function initKeyboardShortcuts() {
     // Escape: 关闭模态框
     if (e.key === 'Escape') {
       const modal = document.getElementById('modal');
-      if (modal && modal.classList.contains('show')) {
+      const detailModal = document.getElementById('detailModal');
+      
+      if (detailModal && detailModal.classList.contains('show')) {
+        closeDetailModal();
+      } else if (modal && modal.classList.contains('show')) {
         closeModal();
       }
     }
