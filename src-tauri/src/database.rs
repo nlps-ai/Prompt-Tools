@@ -552,15 +552,12 @@ impl Database {
         // 再删除提示词
         let rows_affected = tx.execute("DELETE FROM prompts WHERE id = ?1", params![id])?;
         
-        // 检查是否真的删除了数据
-        if rows_affected == 0 {
-            return Err(rusqlite::Error::QueryReturnedNoRows);
-        }
-        
         // 提交事务
         tx.commit()?;
         
         println!("Successfully deleted prompt with id: {}, rows affected: {}", id, rows_affected);
+        
+        // 即使没有删除任何行也返回成功（可能记录已经不存在）
         Ok(())
     }
 
@@ -705,5 +702,107 @@ impl Database {
             params![key, value],
         )?;
         Ok(())
+    }
+
+    pub fn get_category_counts(&self) -> SqliteResult<HashMap<String, i32>> {
+        // 定义分类映射 - HTML中的分类对应的标签关键词
+        let category_mappings = [
+            ("work", vec!["职业", "工作", "职场", "career", "job"]),
+            ("business", vec!["商业", "商务", "business", "marketing", "销售"]),
+            ("tools", vec!["工具", "tool", "效率", "productivity"]),
+            ("language", vec!["语言", "翻译", "language", "translate", "英语"]),
+            ("office", vec!["办公", "office", "文档", "excel", "ppt"]),
+            ("general", vec!["通用", "general", "日常", "常用"]),
+            ("writing", vec!["写作", "文案", "writing", "content", "创作"]),
+            ("programming", vec!["编程", "代码", "programming", "code", "开发"]),
+            ("emotion", vec!["情感", "心理", "emotion", "情绪"]),
+            ("education", vec!["教育", "学习", "education", "teaching", "培训"]),
+            ("creative", vec!["创意", "创新", "creative", "设计思维"]),
+            ("academic", vec!["学术", "研究", "academic", "论文"]),
+            ("design", vec!["设计", "UI", "UX", "design", "视觉"]),
+            ("tech", vec!["技术", "科技", "tech", "AI", "人工智能"]),
+            ("entertainment", vec!["娱乐", "游戏", "entertainment", "fun"])
+        ];
+
+        // 获取所有提示词的标签
+        let mut stmt = self.conn.prepare("SELECT tags FROM prompts WHERE tags IS NOT NULL AND tags != ''")?;
+        let rows = stmt.query_map([], |row| {
+            let tags_str: String = row.get(0)?;
+            Ok(tags_str)
+        })?;
+
+        let mut category_counts: HashMap<String, i32> = HashMap::new();
+        
+        // 初始化所有分类计数为0
+        for (category, _) in &category_mappings {
+            category_counts.insert(category.to_string(), 0);
+        }
+
+        // 统计每个提示词属于哪些分类
+        for row in rows {
+            let tags_str = row?;
+            if let Ok(tags) = serde_json::from_str::<Vec<String>>(&tags_str) {
+                for (category, keywords) in &category_mappings {
+                    // 检查标签是否包含分类关键词
+                    let matches = tags.iter().any(|tag| {
+                        let tag_lower = tag.to_lowercase();
+                        keywords.iter().any(|keyword| {
+                            tag_lower.contains(&keyword.to_lowercase()) || 
+                            keyword.to_lowercase().contains(&tag_lower)
+                        })
+                    });
+                    
+                    if matches {
+                        *category_counts.entry(category.to_string()).or_insert(0) += 1;
+                    }
+                }
+            }
+        }
+        
+        Ok(category_counts)
+    }
+
+    pub fn get_prompts_by_category(&self, category: &str) -> SqliteResult<Vec<Prompt>> {
+        let mut stmt = self.conn.prepare(
+            "SELECT p.id, p.name, p.source, p.notes, p.tags, p.pinned, 
+                    p.created_at, p.updated_at, p.current_version_id,
+                    v.content, v.version
+             FROM prompts p
+             LEFT JOIN versions v ON v.id = p.current_version_id
+             WHERE p.tags LIKE ?1
+             ORDER BY p.pinned DESC, p.updated_at DESC"
+        )?;
+
+        let search_pattern = format!("%\"{}\":%", category);
+        let prompt_iter = stmt.query_map(params![search_pattern], |row| {
+            let tags_str: String = row.get(4)?;
+            let tags: Vec<String> = if tags_str.is_empty() {
+                Vec::new()
+            } else {
+                serde_json::from_str(&tags_str).unwrap_or_else(|_| {
+                    tags_str.split(',').map(|s| s.trim().to_string()).collect()
+                })
+            };
+
+            Ok(Prompt {
+                id: row.get(0)?,
+                name: row.get(1)?,
+                source: row.get(2)?,
+                notes: row.get(3)?,
+                tags,
+                pinned: row.get::<_, i32>(5)? != 0,
+                created_at: row.get(6)?,
+                updated_at: row.get(7)?,
+                current_version_id: row.get(8)?,
+                content: row.get::<_, Option<String>>(9)?.unwrap_or_default(),
+                version: row.get::<_, Option<String>>(10)?.unwrap_or_else(|| "1.0.0".to_string()),
+            })
+        })?;
+
+        let mut prompts = Vec::new();
+        for prompt in prompt_iter {
+            prompts.push(prompt?);
+        }
+        Ok(prompts)
     }
 }

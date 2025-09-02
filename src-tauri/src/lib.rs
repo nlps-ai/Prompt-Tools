@@ -232,6 +232,32 @@ async fn get_all_sources(app_handle: tauri::AppHandle) -> Result<Vec<String>, St
     db.get_all_sources().map_err(|e| format!("Failed to get sources: {}", e))
 }
 
+#[tauri::command]
+async fn get_category_counts(app_handle: tauri::AppHandle) -> Result<std::collections::HashMap<String, i32>, String> {
+    let app_dir = app_handle
+        .path()
+        .app_data_dir()
+        .map_err(|e| format!("Failed to get app data dir: {}", e))?;
+
+    let db_path = app_dir.join("prompts.db");
+    let db = Database::new(db_path).map_err(|e| format!("Database error: {}", e))?;
+
+    db.get_category_counts().map_err(|e| format!("Failed to get category counts: {}", e))
+}
+
+#[tauri::command]
+async fn get_prompts_by_category(app_handle: tauri::AppHandle, category: String) -> Result<Vec<Prompt>, String> {
+    let app_dir = app_handle
+        .path()
+        .app_data_dir()
+        .map_err(|e| format!("Failed to get app data dir: {}", e))?;
+
+    let db_path = app_dir.join("prompts.db");
+    let db = Database::new(db_path).map_err(|e| format!("Database error: {}", e))?;
+
+    db.get_prompts_by_category(&category).map_err(|e| format!("Failed to get prompts by category: {}", e))
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -250,7 +276,9 @@ pub fn run() {
             get_setting,
             set_setting,
             get_all_tags,
-            get_all_sources
+            get_all_sources,
+            get_category_counts,
+            get_prompts_by_category
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
