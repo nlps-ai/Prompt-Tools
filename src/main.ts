@@ -44,6 +44,9 @@ function bindEvents() {
   document.getElementById('themeToggle')?.addEventListener('click', toggleTheme);
   document.getElementById('settingsBtn')?.addEventListener('click', openSettings);
   
+  // 优化提示词按钮
+  document.getElementById('optimizePromptBtn')?.addEventListener('click', optimizePrompt);
+  
   // 模态框
   document.getElementById('closeModal')?.addEventListener('click', closeModal);
   document.getElementById('cancelBtn')?.addEventListener('click', closeModal);
@@ -771,25 +774,47 @@ function showConfirmDialog(message: string): Promise<boolean> {
   });
 }
 
-function showNotification(message: string, type: 'success' | 'error' | 'info' = 'info') {
+function showNotification(message: string, type: 'success' | 'error' | 'info' = 'info', options: { center?: boolean, persistent?: boolean } = {}) {
   const notification = document.createElement('div');
   notification.className = `notification notification-${type}`;
   notification.textContent = message;
   
-  notification.style.cssText = `
-    position: fixed;
-    top: 20px;
-    right: 20px;
-    padding: 12px 20px;
-    border-radius: 8px;
-    color: white;
-    font-weight: 500;
-    z-index: 10000;
-    max-width: 300px;
-    word-wrap: break-word;
-    transition: all 0.3s ease;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-  `;
+  // 根据是否居中显示来设置不同的样式
+  if (options.center) {
+    notification.style.cssText = `
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      padding: 20px 30px;
+      border-radius: 12px;
+      color: white;
+      font-weight: 500;
+      z-index: 10000;
+      max-width: 400px;
+      word-wrap: break-word;
+      transition: all 0.3s ease;
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25);
+      backdrop-filter: blur(10px);
+      font-size: 16px;
+      text-align: center;
+    `;
+  } else {
+    notification.style.cssText = `
+      position: fixed;
+      top: 20px;
+      right: 20px;
+      padding: 12px 20px;
+      border-radius: 8px;
+      color: white;
+      font-weight: 500;
+      z-index: 10000;
+      max-width: 300px;
+      word-wrap: break-word;
+      transition: all 0.3s ease;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    `;
+  }
   
   switch (type) {
     case 'success':
@@ -806,15 +831,172 @@ function showNotification(message: string, type: 'success' | 'error' | 'info' = 
   
   document.body.appendChild(notification);
   
-  setTimeout(() => {
-    if (document.body.contains(notification)) {
-      notification.style.opacity = '0';
-      notification.style.transform = 'translateX(100%)';
+  // 如果不是持久化通知，3秒后自动消失
+  if (!options.persistent) {
+    setTimeout(() => {
+      if (document.body.contains(notification)) {
+        notification.style.opacity = '0';
+        if (options.center) {
+          notification.style.transform = 'translate(-50%, -50%) scale(0.9)';
+        } else {
+          notification.style.transform = 'translateX(100%)';
+        }
+        setTimeout(() => {
+          if (document.body.contains(notification)) {
+            document.body.removeChild(notification);
+          }
+        }, 300);
+      }
+    }, 3000);
+  }
+  
+  return notification; // 返回通知元素，以便后续手动移除
+}
+
+// 优化提示词功能
+async function optimizePrompt() {
+  const contentTextarea = document.getElementById('content') as HTMLTextAreaElement;
+  const optimizeBtn = document.getElementById('optimizePromptBtn') as HTMLButtonElement;
+  
+  if (!contentTextarea || !contentTextarea.value.trim()) {
+    showNotification('请先输入提示词内容', 'error');
+    return;
+  }
+  
+  const originalContent = contentTextarea.value;
+  
+  // 显示加载状态
+  const originalBtnContent = optimizeBtn.innerHTML;
+  optimizeBtn.disabled = true;
+  optimizeBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+  
+  // 显示居中的持久化通知
+  const loadingNotification = showNotification('正在优化提示词...', 'info', { center: true, persistent: true });
+  
+  try {
+    const optimizedContent = await callZhipuAI(originalContent);
+    
+    // 移除加载通知
+    if (document.body.contains(loadingNotification)) {
+      loadingNotification.style.opacity = '0';
+      loadingNotification.style.transform = 'translate(-50%, -50%) scale(0.9)';
       setTimeout(() => {
-        if (document.body.contains(notification)) {
-          document.body.removeChild(notification);
+        if (document.body.contains(loadingNotification)) {
+          document.body.removeChild(loadingNotification);
         }
       }, 300);
     }
-  }, 3000);
+    
+    if (optimizedContent && optimizedContent.trim() !== originalContent.trim()) {
+      contentTextarea.value = optimizedContent;
+      showNotification('提示词优化完成！', 'success');
+      
+      // 更新token计数
+      const event = new Event('input');
+      contentTextarea.dispatchEvent(event);
+    } else {
+      showNotification('优化失败，请稍后重试', 'error');
+    }
+  } catch (error) {
+    console.error('优化提示词失败:', error);
+    
+    // 移除加载通知
+    if (document.body.contains(loadingNotification)) {
+      loadingNotification.style.opacity = '0';
+      loadingNotification.style.transform = 'translate(-50%, -50%) scale(0.9)';
+      setTimeout(() => {
+        if (document.body.contains(loadingNotification)) {
+          document.body.removeChild(loadingNotification);
+        }
+      }, 300);
+    }
+    
+    showNotification('优化失败: ' + (error as any).message, 'error');
+  } finally {
+    // 恢复按钮状态
+    optimizeBtn.disabled = false;
+    optimizeBtn.innerHTML = originalBtnContent;
+  }
+}
+
+
+
+// 调用智谱AI API
+async function callZhipuAI(prompt: string): Promise<string> {
+  try {
+    // 直接使用API密钥
+    const API_KEY = '7645eea5905a4c8b9d668e3e5330b33a.EFzS4nMaR1Ggj60T';
+    const API_URL = 'https://open.bigmodel.cn/api/paas/v4/chat/completions';
+  
+  const requestBody = {
+    model: 'glm-4.5-flash',
+    messages: [
+      {
+        role: 'system',
+        content: `# 角色 (Role)
+你是一位专业的提示词生成专家，擅长运用RTF结构化框架优化提示词。
+
+# 任务 (Task)
+根据用户提供的原始提示词，生成一套优化后的中文提示词。
+
+## 要求 (Requirements)
+1. 严格按照RTF（Role-Task-Format）结构化框架重构提示词
+2. 遵循奥卡姆剃刀原理，确保提示词精简高效，去除所有冗余指令
+3. 应用金字塔原理组织指令，确保逻辑清晰、层次分明
+4. 在生成行为建议时，参考福格行为模型（B=MAT），确保建议具有可执行性
+
+## 实现目标 (Objectives)
+优化后的提示词应能够：
+1. 角色定义更加明确和专业
+2. 任务描述更加清晰和具体
+3. 格式要求更加规范和易执行
+4. 整体结构更加合理和高效
+5. 能够获得更好的AI响应效果
+
+# 格式 (Format)
+1. 使用Markdown格式输出完整的RTF框架提示词
+2. 包含明确的Role定义、Task说明和Format要求
+3. 提供必要的实现细节和约束条件
+4. 直接返回优化后的提示词，不要添加额外的解释`
+      },
+      {
+        role: 'user',
+        content: `请优化以下提示词：\n\n${prompt}`
+      }
+    ],
+    temperature: 0.6,
+    stream: false
+  };
+  
+    const response = await fetch(API_URL, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${API_KEY}`
+      },
+      body: JSON.stringify(requestBody)
+    });
+    
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error('API响应错误:', response.status, response.statusText, errorText);
+      throw new Error(`API请求失败: ${response.status} ${response.statusText} - ${errorText}`);
+    }
+    
+    const data = await response.json();
+    console.log('API响应数据:', data);
+    
+    if (data.choices && data.choices.length > 0 && data.choices[0].message) {
+      return data.choices[0].message.content.trim();
+    } else {
+      console.error('API返回数据格式错误:', data);
+      throw new Error('API返回数据格式错误');
+    }
+  } catch (error) {
+    console.error('调用智谱AI API失败:', error);
+    if (error instanceof Error) {
+      throw error;
+    }
+    throw new Error('调用智谱AI API时发生未知错误');
+  }
 }

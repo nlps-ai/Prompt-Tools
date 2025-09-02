@@ -1255,3 +1255,53 @@ body {
     min-width: auto;
   }
 }
+
+/* 优化按钮样式增强 */
+.textarea-actions .action-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--card);
+  color: var(--primary);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-size: 14px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.textarea-actions .action-btn:hover {
+  background: var(--primary);
+  color: var(--text-on-primary);
+  transform: scale(1.05);
+  box-shadow: 0 4px 8px rgba(0, 123, 255, 0.2);
+}
+
+.textarea-actions .action-btn:active {
+  transform: scale(0.95);
+}
+
+.textarea-actions .action-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none;
+  background: var(--light);
+  color: var(--muted);
+}
+
+.textarea-actions .action-btn i.fa-spinner {
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+/* 确保textarea容器有足够的padding来容纳按钮 */
+.textarea-container .field-textarea {
+  padding-right: 50px;
+}
