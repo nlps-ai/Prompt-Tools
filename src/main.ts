@@ -3,7 +3,6 @@ import { invoke } from '@tauri-apps/api/core';
 
 // 应用状态
 let currentPrompts: any[] = [];
-let currentCategory = 'all';
 let isGridView = true;
 
 // 应用初始化
@@ -144,7 +143,8 @@ function renderPrompts(prompts: any[]) {
   `).join('');
 }
 
-// 创建分类项目
+// 创建分类项目 (暂未使用)
+/*
 function createCategoryItem(category: string, displayName: string, count: number, isActive: boolean): HTMLElement {
   const item = document.createElement('div');
   item.className = `nav-item ${isActive ? 'active' : ''}`;
@@ -156,6 +156,7 @@ function createCategoryItem(category: string, displayName: string, count: number
   item.addEventListener('click', handleCategoryClick);
   return item;
 }
+*/
 
 // 更新分类计数
 async function updateCategoryCounts() {
@@ -219,7 +220,7 @@ async function handleCategoryClick(e: Event) {
   });
   item.classList.add('active');
   
-  currentCategory = category || 'all';
+  // currentCategory = category || 'all'; // 已移除未使用的变量
   
   try {
     let filteredPrompts = currentPrompts;
@@ -412,15 +413,40 @@ async function handleImport() {
     if (!file) return;
     
     try {
-      const text = await file.text();
-      const data = JSON.parse(text);
+      console.log('开始导入文件:', file.name);
       
-      await invoke('import_data', { data });
-      showNotification('导入成功！', 'success');
+      const text = await file.text();
+      const importData = JSON.parse(text);
+      
+      // 验证导入数据格式
+      if (!importData.prompts || !Array.isArray(importData.prompts)) {
+        throw new Error('无效的文件格式：缺少 prompts 数组');
+      }
+      
+      console.log(`准备导入 ${importData.prompts.length} 个提示词`);
+      
+      // 显示导入确认
+      const confirmed = await showConfirmDialog(
+        `确定要导入 ${importData.prompts.length} 个提示词吗？这将添加到现有的提示词中。`
+      );
+      
+      if (!confirmed) {
+        showNotification('导入已取消', 'info');
+        return;
+      }
+      
+      // 调用后端导入函数
+      await invoke('import_data', { data: importData });
+      
+      // 重新加载数据
       await loadPrompts();
+      
+      console.log(`导入完成: ${importData.prompts.length} 个提示词`);
+      showNotification(`导入成功！共导入 ${importData.prompts.length} 个提示词`, 'success');
+      
     } catch (error) {
       console.error('导入失败:', error);
-      showNotification('导入失败: ' + error, 'error');
+      showNotification('导入失败: ' + ((error as any)?.message || error), 'error');
     }
   };
   input.click();
@@ -428,20 +454,44 @@ async function handleImport() {
 
 async function handleExport() {
   try {
-    const data = await invoke('export_data');
-    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
+    console.log('开始导出提示词...');
     
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `prompts-export-${new Date().toISOString().split('T')[0]}.json`;
-    a.click();
+    // 动态导入 Tauri API
+    const { save } = await import('@tauri-apps/plugin-dialog') as any;
     
-    URL.revokeObjectURL(url);
-    showNotification('导出成功！', 'success');
-  } catch (error) {
+    // 生成默认文件名
+    const timestamp = new Date().toISOString().replace(/[:.]/g, '-').split('T')[0];
+    const defaultFilename = `prompt-tools-export-${timestamp}.json`;
+    
+    // 打开保存文件对话框
+    const filePath = await save({
+      defaultPath: defaultFilename,
+      filters: [{
+        name: 'JSON文件',
+        extensions: ['json']
+      }]
+    });
+    
+    // 如果用户取消了对话框
+    if (!filePath) {
+      showNotification('导出已取消', 'info');
+      return;
+    }
+    
+    console.log('用户选择的保存路径:', filePath);
+    
+    // 调用后端函数直接保存到指定路径
+    await invoke('export_data_to_file', { filePath });
+    
+    // 获取导出数据以显示统计信息
+    const exportData = await invoke('export_data') as any;
+    
+    console.log(`导出完成: ${filePath}`);
+    showNotification(`成功导出 ${exportData.prompts?.length || 0} 个提示词到 ${filePath}`, 'success');
+    
+  } catch (error: any) {
     console.error('导出失败:', error);
-    showNotification('导出失败: ' + error, 'error');
+    showNotification('导出失败: ' + (error?.message || error), 'error');
   }
 }
 

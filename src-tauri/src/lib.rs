@@ -168,6 +168,27 @@ async fn export_data(app_handle: tauri::AppHandle) -> Result<ExportData, String>
 }
 
 #[tauri::command]
+async fn export_data_to_file(app_handle: tauri::AppHandle, file_path: String) -> Result<(), String> {
+    let app_dir = app_handle
+        .path()
+        .app_data_dir()
+        .map_err(|e| format!("Failed to get app data dir: {}", e))?;
+
+    let db_path = app_dir.join("prompts.db");
+    let db = Database::new(db_path).map_err(|e| format!("Database error: {}", e))?;
+
+    let export_data = db.export_data().map_err(|e| format!("Failed to export data: {}", e))?;
+    
+    let json_str = serde_json::to_string_pretty(&export_data)
+        .map_err(|e| format!("Failed to serialize data: {}", e))?;
+    
+    std::fs::write(&file_path, json_str)
+        .map_err(|e| format!("Failed to write file: {}", e))?;
+    
+    Ok(())
+}
+
+#[tauri::command]
 async fn import_data(app_handle: tauri::AppHandle, data: ExportData) -> Result<(), String> {
     let app_dir = app_handle
         .path()
@@ -262,6 +283,8 @@ async fn get_prompts_by_category(app_handle: tauri::AppHandle, category: String)
 pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
+        .plugin(tauri_plugin_dialog::init())
+        .plugin(tauri_plugin_fs::init())
         .invoke_handler(tauri::generate_handler![
             get_all_prompts,
             search_prompts,
@@ -272,6 +295,7 @@ pub fn run() {
             get_prompt_versions,
             rollback_to_version,
             export_data,
+            export_data_to_file,
             import_data,
             get_setting,
             set_setting,
