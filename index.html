@@ -1,282 +1,35 @@
-<!doctype html>
-<html lang="zh-CN">
+<!DOCTYPE html>
+<html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/src/assets/tauri.svg" />
+    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Prompt Tools - 提示词管理器</title>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <title>Prompt Tools</title>
   </head>
 
-  <body class="theme-light">
-    <div id="app">
-      <!-- 左侧导航栏 -->
-      <aside class="sidebar">
-        <div class="sidebar-header">
-          <div class="logo">
-            <i class="fas fa-magic"></i>
-            <span>Prompt Tools</span>
-          </div>
-        </div>
-        
-        <nav class="sidebar-nav">
-          <div class="nav-section">
-            <div class="nav-item active" data-category="all">
-              <i class="fas fa-star"></i>
-              <span>我的</span>
-              <span class="count">15</span>
-            </div>
-            <div class="nav-item" data-category="featured">
-              <i class="fas fa-heart"></i>
-              <span>精选</span>
-              <span class="count">4</span>
-            </div>
-          </div>
-          
-          <div class="nav-section">
-            <div class="section-title">分类</div>
-            <div class="nav-item" data-category="work">
-              <i class="fas fa-briefcase"></i>
-              <span>职业</span>
-              <span class="count">273</span>
-            </div>
-            <div class="nav-item" data-category="business">
-              <i class="fas fa-chart-line"></i>
-              <span>商业</span>
-              <span class="count">162</span>
-            </div>
-            <div class="nav-item" data-category="tools">
-              <i class="fas fa-tools"></i>
-              <span>工具</span>
-              <span class="count">283</span>
-            </div>
-            <div class="nav-item" data-category="language">
-              <i class="fas fa-language"></i>
-              <span>语言</span>
-              <span class="count">24</span>
-            </div>
-            <div class="nav-item" data-category="office">
-              <i class="fas fa-file-alt"></i>
-              <span>办公</span>
-              <span class="count">44</span>
-            </div>
-            <div class="nav-item" data-category="general">
-              <i class="fas fa-globe"></i>
-              <span>通用</span>
-              <span class="count">37</span>
-            </div>
-            <div class="nav-item" data-category="writing">
-              <i class="fas fa-pen"></i>
-              <span>写作</span>
-              <span class="count">121</span>
-            </div>
-            <div class="nav-item" data-category="programming">
-              <i class="fas fa-code"></i>
-              <span>编程</span>
-              <span class="count">61</span>
-            </div>
-            <div class="nav-item" data-category="emotion">
-              <i class="fas fa-smile"></i>
-              <span>情感</span>
-              <span class="count">37</span>
-            </div>
-            <div class="nav-item" data-category="education">
-              <i class="fas fa-graduation-cap"></i>
-              <span>教育</span>
-              <span class="count">274</span>
-            </div>
-            <div class="nav-item" data-category="creative">
-              <i class="fas fa-lightbulb"></i>
-              <span>创意</span>
-              <span class="count">166</span>
-            </div>
-            <div class="nav-item" data-category="academic">
-              <i class="fas fa-university"></i>
-              <span>学术</span>
-              <span class="count">54</span>
-            </div>
-            <div class="nav-item" data-category="design">
-              <i class="fas fa-palette"></i>
-              <span>设计</span>
-              <span class="count">31</span>
-            </div>
-            <div class="nav-item" data-category="tech">
-              <i class="fas fa-microchip"></i>
-              <span>艺术</span>
-              <span class="count">41</span>
-            </div>
-            <div class="nav-item" data-category="entertainment">
-              <i class="fas fa-gamepad"></i>
-              <span>娱乐</span>
-              <span class="count">76</span>
-            </div>
-          </div>
-        </nav>
-      </aside>
+  <body>
+    <div class="container">
+      <h1>Welcome to Prompt Tools!</h1>
 
-      <!-- 主内容区域 -->
-      <main class="main-container">
-        <!-- 顶部工具栏 -->
-        <header class="main-header">
-          <div class="header-left">
-            <div class="search-container">
-              <i class="fas fa-search search-icon"></i>
-              <input 
-                type="text" 
-                id="searchInput" 
-                placeholder="搜索提示词..." 
-                class="search-input"
-              />
-            </div>
-          </div>
-          
-          <div class="header-right">
-            <button id="createBtn" class="btn btn-primary">
-              <i class="fas fa-plus"></i>
-              创建提示词
-            </button>
-            
-            <div class="toolbar-group">
-              <button id="viewToggle" class="btn-icon" title="切换视图">
-                <i class="fas fa-th"></i>
-              </button>
-              
-              <button id="themeToggle" class="btn-icon" title="切换主题">
-                <i class="fas fa-moon"></i>
-              </button>
-              
-              <div class="dropdown">
-                <button class="btn-icon dropdown-toggle" title="更多操作">
-                  <i class="fas fa-ellipsis-v"></i>
-                </button>
-                <div class="dropdown-menu">
-                  <button id="exportBtn" class="dropdown-item">
-                    <i class="fas fa-download"></i>
-                    导出数据
-                  </button>
-                  <button id="importBtn" class="dropdown-item">
-                    <i class="fas fa-upload"></i>
-                    导入数据
-                  </button>
-                  <button id="importBestBtn" class="dropdown-item">
-                    <i class="fas fa-star"></i>
-                    导入精选中文提示词
-                  </button>
-                  <div class="dropdown-divider"></div>
-                  <button id="settingsBtn" class="dropdown-item">
-                    <i class="fas fa-cog"></i>
-                    设置
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
-        </header>
-
-        <!-- 内容区域 -->
-        <div class="content-area">
-          <div id="promptList" class="prompt-grid">
-            <!-- 提示词卡片将在这里动态生成 -->
-          </div>
-        </div>
-      </main>
-
-      <!-- 编辑模态框 -->
-      <div id="modal" class="modal">
-        <div class="modal-overlay" id="modalOverlay"></div>
-        <div class="modal-container">
-          <div class="modal-header">
-            <h2 id="modalTitle">创建智能体</h2>
-            <button id="closeModal" class="close-btn">&times;</button>
-          </div>
-          
-          <form id="promptForm" class="modal-form">
-            <div class="form-section">
-              <div class="form-field">
-                <label class="field-label">
-                  <span class="required">*</span> 名称
-                </label>
-                <input 
-                  type="text" 
-                  id="name" 
-                  name="name" 
-                  required 
-                  placeholder="输入名称"
-                  class="field-input"
-                />
-              </div>
-              
-              <div class="form-field">
-                <label class="field-label">
-                  <span class="required">*</span> 提示词
-                </label>
-                <div class="textarea-container">
-                  <textarea 
-                    id="content" 
-                    name="content" 
-                    required 
-                    placeholder="输入提示词"
-                    class="field-textarea"
-                    rows="8"
-                  ></textarea>
-                  <div class="textarea-actions">
-                    <button type="button" class="action-btn" title="AI优化">
-                      <i class="fas fa-magic"></i>
-                    </button>
-                  </div>
-                  <div class="token-counter">
-                    Tokens: <span id="tokenCount">0</span>
-                  </div>
-                </div>
-              </div>
-
-              <div class="form-field">
-                <label class="field-label">标签</label>
-                <input 
-                  type="text" 
-                  id="tags" 
-                  name="tags" 
-                  placeholder="用逗号分隔多个标签"
-                  class="field-input"
-                />
-              </div>
-
-              <div class="form-field">
-                <label class="field-label">来源</label>
-                <input 
-                  type="text" 
-                  id="source" 
-                  name="source" 
-                  placeholder="来源链接或描述"
-                  class="field-input"
-                />
-              </div>
-
-              <div class="form-field">
-                <label class="field-label">备注</label>
-                <textarea 
-                  id="notes" 
-                  name="notes" 
-                  placeholder="添加备注信息..."
-                  class="field-textarea"
-                  rows="3"
-                ></textarea>
-              </div>
-            </div>
-            
-            <div class="modal-actions">
-              <button type="button" id="cancelBtn" class="btn-cancel">
-                取消
-              </button>
-                <button type="submit" class="btn-submit">
-                  <span id="submitText">创建提示词</span>
-                </button>
-            </div>
-          </form>
-        </div>
+      <div class="row">
+        <a href="https://vitejs.dev" target="_blank">
+          <img src="/vite.svg" class="logo vite" alt="Vite logo" />
+        </a>
+        <a href="https://tauri.app" target="_blank">
+          <img src="/tauri.svg" class="logo tauri" alt="Tauri logo" />
+        </a>
       </div>
+
+      <p>Click on the Tauri and Vite logos to learn more.</p>
+
+      <form class="row" id="greet-form">
+        <input id="greet-input" placeholder="Enter a name..." />
+        <button type="submit">Greet</button>
+      </form>
+
+      <p id="greet-msg"></p>
     </div>
 
-    <script type="module" src="/src/main.ts"></script>
+    <script type="module" src="/src/main.js"></script>
   </body>
 </html>
