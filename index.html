@@ -6,6 +6,47 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Prompt Tools - 提示词管理器</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+      .header-links {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        margin-right: 1rem;
+      }
+      
+      .header-link {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 32px;
+        height: 32px;
+        border-radius: 6px;
+        color: #666;
+        text-decoration: none;
+        transition: all 0.2s ease;
+        background: transparent;
+      }
+      
+      .header-link:hover {
+        background: #f0f0f0;
+        color: #333;
+        text-decoration: none;
+      }
+      
+      .header-link i {
+        font-size: 14px;
+      }
+      
+      /* 暗色主题适配 */
+      .theme-dark .header-link {
+        color: #ccc;
+      }
+      
+      .theme-dark .header-link:hover {
+        background: #333;
+        color: #fff;
+      }
+    </style>
   </head>
 
   <body class="theme-light">
@@ -131,6 +172,16 @@
           </div>
           
           <div class="header-right">
+            <!-- 链接区域 -->
+            <div class="header-links">
+              <a href="https://www.promptingguide.ai/zh" target="_blank" class="header-link" title="提示词工程指南">
+                <i class="fas fa-book"></i>
+              </a>
+              <a href="https://github.com/jwangkun/Prompt-Tools" target="_blank" class="header-link" title="项目仓库">
+                <i class="fab fa-github"></i>
+              </a>
+            </div>
+            
             <button id="createBtn" class="btn btn-primary">
               <i class="fas fa-plus"></i>
               创建提示词
@@ -334,6 +385,7 @@
         </div>
       </div>
     </div>
+
 
     <script type="module" src="/src/main.ts"></script>
   </body>
