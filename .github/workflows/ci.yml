@@ -75,15 +75,37 @@ jobs:
       - name: Install system dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y libsqlite3-dev pkg-config libssl-dev
+          sudo apt-get install -y \
+            libsqlite3-dev \
+            pkg-config \
+            libssl-dev \
+            build-essential \
+            libc6-dev
       
       - name: Cache Rust dependencies
         uses: Swatinem/rust-cache@v2
         with:
           workspaces: src-tauri
+          key: backend-check
       
+      - name: Debug Cargo environment
+        run: |
+          cd src-tauri
+          echo "=== Current directory ==="
+          pwd
+          ls -la
+          echo "=== Cargo version ==="
+          cargo --version
+          echo "=== Rust version ==="
+          rustc --version
+          echo "=== Cargo.toml content ==="
+          head -30 Cargo.toml
+          
       - name: Run cargo check
-        run: cd src-tauri && cargo check
+        run: |
+          cd src-tauri
+          echo "=== Running cargo check with verbose output ==="
+          RUST_BACKTRACE=1 cargo check --verbose 2>&1
 
   # Ubuntu 构建测试
   test-tauri-ubuntu:
