@@ -56,10 +56,10 @@ jobs:
         run: pnpm install --frozen-lockfile
       
       - name: Type check
-        run: npm run typecheck
+        run: pnpm typecheck
       
       - name: Build Frontend
-        run: npm run build
+        run: pnpm build
 
   # 后端快速检查
   backend-check:
@@ -205,32 +205,6 @@ jobs:
       
       - name: Build Tauri app (Debug)
         run: pnpm tauri build --debug
-+++++++ REPLACE</div>
-</replace_in_file>
-
-现在修复 release.yml 和 manual-release.yml 中的包管理器配置：
-
-<replace_in_file>
-<path>.github/workflows/release.yml</path>
-<diff>------- SEARCH
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-      - name: Install dependencies
-        run: npm ci
-=======
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v4
-        with:
-          version: 9
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-          cache: 'pnpm'
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile
       
       - name: Upload build artifacts (if requested)
         if: ${{ github.event.inputs.upload_artifacts == 'true' }}
