@@ -38,7 +38,6 @@ jobs:
       matrix:
         include:
           - os: ubuntu-22.04
-            container: ubuntu:22.04
             platform: linux
             arch: x64
           - os: windows-2022
@@ -53,7 +52,6 @@ jobs:
             arch: arm64
             targets: aarch64-apple-darwin
     runs-on: ${{ matrix.os }}
-    container: ${{ matrix.container }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -77,7 +75,7 @@ jobs:
       - name: Install system deps for Linux (Ubuntu 22.04)
         if: ${{ matrix.os == 'ubuntu-22.04' }}
         run: |
-          apt-get update && apt-get install -y \
+          sudo apt-get update && sudo apt-get install -y \
             libwebkit2gtk-4.1-dev libgtk-3-dev libayatana-appindicator3-dev \
             librsvg2-dev build-essential curl wget file patchelf libssl-dev \
             xdg-utils desktop-file-utils
@@ -110,7 +108,12 @@ jobs:
       - name: List generated bundles (Debug)
         run: |
           echo "=== Generated bundles for ${{ matrix.platform }}-${{ matrix.arch }} ==="
-          find src-tauri/target/release/bundle -type f | sort || echo "No bundles found"
+          if ($env:OS -eq "Windows_NT") {
+            Get-ChildItem -Recurse src-tauri/target/release/bundle | Sort-Object FullName | ForEach-Object { $_.FullName }
+          } else {
+            find src-tauri/target/release/bundle -type f | sort || echo "No bundles found"
+          }
+        shell: pwsh
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
