@@ -909,3 +909,121 @@ body {
   margin-right: 3px;
   font-size: 10px;
 }
+
+/* 去使用这个提示词功能区域样式 */
+.card-usage {
+  margin-top: var(--spacing-md);
+  padding: var(--spacing-md);
+  background: var(--light);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  transition: all 0.2s ease;
+}
+
+.usage-title {
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+  color: var(--fg);
+  margin-bottom: var(--spacing-md);
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+}
+
+.usage-title::before {
+  content: "🚀";
+  font-size: 1.1em;
+}
+
+.usage-platforms {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(80px, 1fr));
+  gap: var(--spacing-sm);
+}
+
+.platform-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: var(--spacing-sm);
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  text-decoration: none;
+  color: var(--fg);
+  font-size: var(--font-size-xs);
+  font-weight: 500;
+  min-height: 60px;
+  justify-content: center;
+}
+
+.platform-item:hover {
+  background: var(--primary);
+  color: var(--text-on-primary);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 123, 255, 0.2);
+  border-color: var(--primary);
+}
+
+.platform-icon {
+  width: 20px;
+  height: 20px;
+  margin-bottom: var(--spacing-xs);
+  border-radius: var(--radius-sm);
+  object-fit: contain;
+  background: white;
+  padding: 2px;
+}
+
+.platform-item span {
+  font-size: var(--font-size-xs);
+  text-align: center;
+  line-height: 1.2;
+  font-weight: 500;
+}
+
+/* 响应式调整 */
+@media (max-width: 768px) {
+  .usage-platforms {
+    grid-template-columns: repeat(3, 1fr);
+    gap: var(--spacing-xs);
+  }
+  
+  .platform-item {
+    padding: var(--spacing-xs);
+    font-size: var(--font-size-xs);
+    min-height: 50px;
+  }
+  
+  .platform-icon {
+    width: 16px;
+    height: 16px;
+    margin-bottom: 4px;
+  }
+  
+  .platform-item span {
+    font-size: 10px;
+  }
+}
+
+/* 列表视图下的调整 */
+.list-view .usage-platforms {
+  grid-template-columns: repeat(6, 1fr);
+  gap: var(--spacing-xs);
+}
+
+.list-view .platform-item {
+  padding: var(--spacing-xs);
+  min-height: 50px;
+}
+
+.list-view .platform-icon {
+  width: 16px;
+  height: 16px;
+}
+
+.list-view .platform-item span {
+  font-size: 10px;
+}
