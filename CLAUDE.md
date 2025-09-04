@@ -4,187 +4,410 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-Prompt Tools is a desktop application for managing AI prompts, built with **Tauri 2.x** framework combining **Rust backend** and **TypeScript/Vite frontend**. It provides a local-first approach to storing and organizing prompts with features like versioning, categorization, search, and AI-powered optimization.
+AI Prompt Tools is a modern web application for managing AI prompts, built with **Next.js 14** and **Firebase**. It provides a cloud-first approach to storing and organizing prompts with features like version control, AI-powered optimization, user authentication, and real-time collaboration.
 
 ## Architecture
 
 ### Tech Stack
-- **Frontend**: TypeScript + Vite + Vanilla DOM manipulation (no framework)
-- **Backend**: Rust + Tauri 2.x + SQLite (via rusqlite)
-- **Database**: SQLite with foreign key constraints enabled
-- **Package Manager**: pnpm (must use pnpm, not npm)
+- **Frontend**: Next.js 14 (App Router) + React 18 + TypeScript
+- **Backend**: Next.js API Routes + Firebase Firestore
+- **Database**: Firebase Firestore (NoSQL cloud database)
+- **Authentication**: NextAuth.js with Credentials Provider
+- **Styling**: Tailwind CSS + Radix UI Components
+- **State Management**: TanStack Query (React Query)
+- **Forms**: React Hook Form + Zod validation
+- **Package Manager**: npm
 
-### Database Schema
-The SQLite database (`prompts.db`) contains three main tables:
-- **prompts**: Core prompt data with metadata (name, source, notes, tags, pinned status)
-- **versions**: Version history with semantic versioning (1.0.0 format)
-- **settings**: Application settings (e.g., version_cleanup_threshold)
+### Database Schema (Firebase Firestore)
+The Firestore database contains the following collections:
+
+**Users Collection**:
+```typescript
+interface User {
+  id: string;
+  username: string;
+  email?: string;
+  passwordHash: string;
+  displayName?: string;
+  avatar?: string;
+  createdAt: string;
+  updatedAt: string;
+  preferences?: {
+    theme: 'light' | 'dark' | 'system';
+    language: string;
+  };
+}
+```
+
+**Prompts Collection**:
+```typescript
+interface Prompt {
+  id: string;
+  userId: string;
+  title: string;
+  content: string;
+  description?: string;
+  tags: string[];
+  category?: string;
+  version: string; // semver format
+  isPublic: boolean;
+  createdAt: string;
+  updatedAt: string;
+  lastUsed?: string;
+  usageCount: number;
+}
+```
+
+**Prompt Versions Collection**:
+```typescript
+interface PromptVersion {
+  id: string;
+  promptId: string;
+  version: string;
+  content: string;
+  changes?: string;
+  createdAt: string;
+  userId: string;
+}
+```
 
 ### Key Architectural Patterns
-- **Command Pattern**: Rust backend exposes Tauri commands that frontend invokes
-- **Local-First Storage**: All data stored locally in app data directory
+- **App Router**: Next.js 14 App Router with server components
+- **API Routes**: RESTful endpoints using Next.js API routes
+- **Cloud-First Storage**: All data stored in Firebase Firestore
 - **Version Control**: Built-in semantic versioning for prompt evolution
-- **Category System**: Tag-based categorization with predefined mappings
+- **Real-time Updates**: Optimistic updates with TanStack Query
+- **Component Architecture**: Modular React components with TypeScript
 
 ## Development Commands
 
 ### Development Workflow
 ```bash
-# Install dependencies (MUST use pnpm)
-pnpm install
+# Install dependencies
+npm install
 
-# Development mode (starts both Vite dev server and Tauri)
-pnpm tauri:dev
+# Development mode (starts Next.js dev server)
+npm run dev
 
-# Build frontend only
-pnpm build
+# Build for production
+npm run build
 
-# Build complete application
-pnpm tauri:build
+# Start production server
+npm run start
 
 # Type checking
-pnpm typecheck
+npm run typecheck
+
+# Linting
+npm run lint
+```
+
+### Environment Setup
+Create `.env.local` file with required environment variables:
+```env
+# NextAuth Configuration
+NEXTAUTH_URL=http://localhost:3000
+NEXTAUTH_SECRET=your-nextauth-secret-key
+
+# Firebase Configuration
+FIREBASE_PROJECT_ID=your-project-id
+FIREBASE_CLIENT_EMAIL=your-service-account-email
+FIREBASE_PRIVATE_KEY="your-private-key"
+
+# AI Optimization (Optional)
+ZHIPU_AI_KEY=your-zhipu-ai-api-key
 ```
 
 ### Build Outputs
-- **Development**: Uses Vite dev server on port 1421
-- **Production**: Frontend builds to `dist/`, final app bundles to `src-tauri/target/release/bundle/`
+- **Development**: Next.js dev server on port 3000
+- **Production**: Optimized build in `.next/` directory
 
 ## Code Organization
 
-### Frontend Structure (`src/`)
-- **main.ts**: Main application entry point with DOM manipulation and event handling
-- **styles.css**: All styling (no CSS preprocessor)
-- **assets/**: Static assets (SVG icons)
+### App Router Structure (`app/`)
+- **layout.tsx**: Root layout with providers
+- **(auth)/**: Authentication routes (login, register)
+- **dashboard/**: Main application pages
+  - **page.tsx**: Dashboard home
+  - **prompts/**: Prompt management pages
+  - **settings/**: User settings pages
+- **api/**: API route handlers
+  - **auth/**: Authentication endpoints
+  - **prompts/**: Prompt CRUD operations
+  - **user/**: User management
+  - **ai/**: AI optimization features
 
-### Backend Structure (`src-tauri/src/`)
-- **main.rs**: Tauri application entry point
-- **lib.rs**: Tauri command handlers and application logic
-- **database.rs**: SQLite database operations and data models
+### Component Structure (`components/`)
+- **ui/**: Reusable UI components (Radix UI based)
+- **layout/**: Layout components (navbar, sidebar, footer)
+- **prompts/**: Prompt-specific components
+
+### Utility Libraries (`lib/`)
+- **firebase.ts**: Firebase configuration and service methods
+- **auth.ts**: NextAuth.js configuration
+- **utils.ts**: Helper functions and utilities
+- **validations.ts**: Zod schemas for validation
 
 ### Key Data Structures
-```rust
-// Main data models in database.rs
-pub struct Prompt {
-    pub id: i64,
-    pub name: String,
-    pub content: String,
-    pub tags: Vec<String>,
-    pub version: String,
-    // ... other fields
-}
-
-pub struct Version {
-    pub id: i64,
-    pub prompt_id: i64,
-    pub version: String,
-    pub content: String,
-    // ... other fields
+```typescript
+// Prompt service methods in lib/firebase.ts
+export class FirebaseService {
+  static async createPrompt(promptData: CreatePromptRequest): Promise<PromptDoc>
+  static async getPromptsByUserId(userId: string, limit?: number): Promise<PromptDoc[]>
+  static async updatePrompt(id: string, updates: Partial<PromptDoc>): Promise<void>
+  static async deletePrompt(id: string): Promise<void>
+  static async optimizePrompt(content: string, mode: 'structure' | 'clarity' | 'effectiveness'): Promise<string>
 }
 ```
 
 ## Important Development Patterns
 
-### Frontend-Backend Communication
-All backend calls use Tauri's `invoke` function:
+### API Route Implementation
+All API routes follow Next.js 14 App Router pattern:
 ```typescript
-import { invoke } from '@tauri-apps/api/core';
-
-// Example: Get all prompts
-const prompts = await invoke('get_all_prompts');
-
-// Example: Create new prompt
-await invoke('create_prompt', {
-    name: 'Prompt Name',
-    content: 'Prompt content...',
-    tags: ['tag1', 'tag2']
-});
+// app/api/prompts/route.ts
+export async function GET(request: Request) {
+  const session = await getServerSession(authOptions);
+  if (!session) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+  
+  try {
+    const prompts = await FirebaseService.getPromptsByUserId(session.user.id);
+    return NextResponse.json(prompts);
+  } catch (error) {
+    return NextResponse.json({ error: 'Server error' }, { status: 500 });
+  }
+}
 ```
 
-### Database Connection Pattern
-Every Tauri command:
-1. Gets app data directory path
-2. Creates database connection to `prompts.db`
-3. Performs operation through Database struct
-4. Returns Result<T, String> for error handling
+### Client-Server Data Fetching
+Uses TanStack Query for server state management:
+```typescript
+// hooks/use-prompts.ts
+export function usePrompts() {
+  return useQuery({
+    queryKey: ['prompts'],
+    queryFn: async () => {
+      const response = await fetch('/api/prompts');
+      if (!response.ok) throw new Error('Failed to fetch prompts');
+      return response.json();
+    },
+  });
+}
+```
 
-### Category System
-Categories are determined by tag matching using predefined keyword mappings in both:
-- `database.rs`: `get_category_counts()` function
-- `main.ts`: `handleCategoryClick()` function
+### Form Handling Pattern
+React Hook Form with Zod validation:
+```typescript
+const form = useForm<CreatePromptSchema>({
+  resolver: zodResolver(createPromptSchema),
+  defaultValues: {
+    title: '',
+    content: '',
+    tags: [],
+  },
+});
 
-**Keep these mappings synchronized when adding new categories.**
+const onSubmit = async (data: CreatePromptSchema) => {
+  await createPromptMutation.mutateAsync(data);
+};
+```
+
+### Authentication Flow
+NextAuth.js with Credentials Provider:
+```typescript
+// lib/auth.ts
+export const authOptions: NextAuthOptions = {
+  providers: [
+    CredentialsProvider({
+      credentials: {
+        username: { label: "Username", type: "text" },
+        password: { label: "Password", type: "password" }
+      },
+      async authorize(credentials) {
+        const user = await FirebaseService.authenticateUser(
+          credentials.username,
+          credentials.password
+        );
+        return user || null;
+      },
+    }),
+  ],
+  // ... other options
+};
+```
 
 ## Testing and Quality
 
 ### Current State
-- No automated tests are currently implemented
-- Type checking available via `pnpm typecheck`
-- Manual testing required for all features
+- TypeScript strict mode enabled
+- ESLint with Next.js configuration
+- Zod validation for all API inputs
+- Error boundaries for graceful error handling
 
 ### Before Committing
-1. Run `pnpm typecheck` to ensure TypeScript compliance
-2. Test both development and build modes
-3. Verify database operations work correctly
-4. Check UI responsiveness and functionality
+1. Run `npm run typecheck` to ensure TypeScript compliance
+2. Run `npm run lint` to check code style
+3. Test authentication flow
+4. Verify Firebase Firestore operations
+5. Check responsive design and UI components
 
-## File Handling and I/O
+## Database Operations
 
-### Import/Export Features
-- **Export**: Uses Tauri dialog plugin to save JSON files
-- **Import**: File picker for JSON with data validation
-- **Format**: Custom JSON structure with prompts, versions, and settings
+### Firebase Firestore Configuration
+```typescript
+// lib/firebase.ts
+const adminDb = admin.firestore();
 
-### Database Location
-- **Development**: `~/.local/share/com.jwangkun.prompt-tools/prompts.db` (Linux)
-- **Production**: Platform-specific app data directory
+// Enable offline persistence for better UX
+if (typeof window !== 'undefined') {
+  import('firebase/firestore').then(({ enableNetwork, disableNetwork }) => {
+    // Configure offline persistence
+  });
+}
+```
+
+### Firestore Security Rules
+```javascript
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /users/{userId} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+    }
+    match /prompts/{promptId} {
+      allow read, write: if request.auth != null && resource.data.userId == request.auth.uid;
+    }
+    match /versions/{versionId} {
+      allow read, write: if request.auth != null;
+    }
+  }
+}
+```
+
+### Composite Indexes
+The `firestore.indexes.json` file defines optimized indexes:
+```json
+{
+  "indexes": [
+    {
+      "collectionGroup": "prompts",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {"fieldPath": "userId", "order": "ASCENDING"},
+        {"fieldPath": "updatedAt", "order": "DESCENDING"}
+      ]
+    }
+  ]
+}
+```
 
 ## UI Architecture
 
-### No Framework Approach
-The frontend uses vanilla TypeScript with direct DOM manipulation:
-- Event delegation for dynamic content
-- Manual state management in global variables
-- Direct HTML string generation for dynamic content
+### Component System
+Built on Radix UI primitives with custom styling:
+- **Design System**: Consistent color palette and typography
+- **Responsive Design**: Mobile-first approach with Tailwind CSS
+- **Accessibility**: ARIA compliant components from Radix UI
+- **Theme Support**: Light/dark mode with next-themes
 
 ### Key UI Components
-- **Prompt Cards**: Grid/list view toggle
-- **Search/Filter**: Real-time filtering with category navigation
-- **Modal System**: Custom modal implementation for forms and details
-- **Theme System**: Light/dark theme with localStorage persistence
+- **Button**: Various variants and sizes
+- **Input**: Form inputs with validation states
+- **Dialog**: Modal dialogs for forms and confirmations
+- **DropdownMenu**: Context menus and action dropdowns
+- **Separator**: Visual dividers and spacing
+- **Toast**: Success/error notifications with Sonner
+
+### Layout Structure
+- **Navbar**: Top navigation with user menu
+- **Sidebar**: Secondary navigation (if applicable)
+- **Main Content**: Dashboard and feature pages
+- **Footer**: Links and application info
 
 ## External Integrations
 
 ### AI Optimization Feature
-The application includes integration with Zhipu AI API for prompt optimization:
-- API endpoint: `https://open.bigmodel.cn/api/paas/v4/chat/completions`
-- Model: `glm-4.5-flash`
-- **Note**: API key is currently hardcoded - should be moved to settings
+Integration with Zhipu AI API for prompt optimization:
+```typescript
+// lib/firebase.ts
+static async optimizePrompt(content: string, mode: OptimizationMode): Promise<string> {
+  const response = await fetch('https://open.bigmodel.cn/api/paas/v4/chat/completions', {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${process.env.ZHIPU_AI_KEY}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      model: 'glm-4-flash',
+      messages: [
+        {
+          role: 'user',
+          content: `Please optimize this prompt for ${mode}: ${content}`,
+        },
+      ],
+    }),
+  });
+  
+  const data = await response.json();
+  return data.choices[0].message.content;
+}
+```
 
 ## Common Debugging Tips
 
 ### Database Issues
-- Check if `prompts.db` exists in app data directory
-- Verify foreign key constraints are enabled
-- Use database initialization logs to debug startup
+- Check Firebase project configuration and credentials
+- Verify Firestore security rules allow user operations
+- Deploy composite indexes: `firebase deploy --only firestore:indexes`
+- Monitor Firestore usage and quotas in Firebase console
+
+### API Route Issues
+- Check server logs in terminal during development
+- Verify authentication middleware in protected routes
+- Use proper HTTP status codes and error messages
+- Test API routes independently with tools like Postman
 
 ### Frontend Issues
-- Check browser console for JavaScript errors
-- Verify Tauri command names match between frontend and backend
-- Ensure proper error handling in async operations
+- Check browser console for React/TypeScript errors
+- Verify TanStack Query cache invalidation
+- Test form validation with various inputs
+- Ensure proper loading and error states
 
-### Build Issues
-- Always use `pnpm` not `npm`
-- Ensure Rust toolchain is properly installed
-- Check Tauri prerequisites are met for target platform
+### Authentication Issues
+- Verify NextAuth.js configuration and environment variables
+- Check session persistence across page refreshes
+- Test login/logout flow thoroughly
+- Ensure password hashing with bcrypt is working
 
 ## Deployment Notes
 
-### Current Support
-- **Primary**: macOS (Apple Silicon)
-- **Planned**: Windows and Linux support
+### Vercel Deployment (Recommended)
+- Automatic deployments from Git repository
+- Environment variables configured in Vercel dashboard
+- Serverless functions for API routes
+- Edge runtime support for global performance
+
+### Environment Variables Required
+```
+NEXTAUTH_URL=https://your-domain.vercel.app
+NEXTAUTH_SECRET=production-secret-key
+FIREBASE_PROJECT_ID=your-firebase-project
+FIREBASE_CLIENT_EMAIL=service-account@project.iam.gserviceaccount.com
+FIREBASE_PRIVATE_KEY="-----BEGIN PRIVATE KEY-----\n...\n-----END PRIVATE KEY-----\n"
+ZHIPU_AI_KEY=your-ai-api-key
+```
 
 ### Build Configuration
-- Icons provided for all platforms in `src-tauri/icons/`
-- Bundle configuration in `src-tauri/tauri.conf.json`
-- Minimum window size: 800x600, default: 1200x800
+- Next.js optimized production builds
+- Automatic code splitting and bundling
+- Image optimization and static asset handling
+- Serverless function deployment for API routes
+
+### Performance Considerations
+- Server-side rendering for initial page loads
+- Client-side routing for subsequent navigation
+- Optimistic updates for better perceived performance
+- Image optimization and lazy loading
+- Bundle analysis and code splitting optimization
