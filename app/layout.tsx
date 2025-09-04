@@ -19,10 +19,6 @@ export const metadata: Metadata = {
   keywords: ['AI', '提示词', 'Prompt', 'ChatGPT', '人工智能', '效率工具'],
   authors: [{ name: 'Prompt Tools Team' }],
   creator: 'Prompt Tools',
-  themeColor: [
-    { media: '(prefers-color-scheme: light)', color: 'white' },
-    { media: '(prefers-color-scheme: dark)', color: 'black' },
-  ],
   openGraph: {
     type: 'website',
     locale: 'zh_CN',
