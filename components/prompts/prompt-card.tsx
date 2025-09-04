@@ -1,10 +1,16 @@
 'use client'
 
 import { useState } from 'react'
-import { useQuery } from '@tanstack/react-query'
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
 import { 
   MoreVertical, 
   Pin, 
@@ -16,9 +22,18 @@ import {
   Clock
 } from 'lucide-react'
 import { formatDateTime, truncate } from '@/lib/utils'
-import { Prompt } from '@prisma/client'
 
-interface PromptWithVersion extends Prompt {
+interface PromptWithVersion {
+  id: string
+  name: string
+  source?: string
+  notes?: string
+  tags: string[]
+  pinned: boolean
+  createdAt: Date
+  updatedAt: Date
+  currentVersionId?: string
+  userId: string
   currentVersion?: {
     version: string
     content: string
@@ -48,7 +63,7 @@ export function PromptCard({
   const [isActionsOpen, setIsActionsOpen] = useState(false)
 
   const handleCopy = async () => {
-    await onCopy(prompt.currentVersion?.content || prompt.content || '')
+    await onCopy(prompt.currentVersion?.content || '')
     setIsActionsOpen(false)
   }
 
@@ -67,7 +82,7 @@ export function PromptCard({
     setIsActionsOpen(false)
   }
 
-  const content = prompt.currentVersion?.content || prompt.content || ''
+  const content = prompt.currentVersion?.content || ''
 
   return (
     <Card className={`group hover:shadow-lg transition-all duration-200 ${prompt.pinned ? 'ring-2 ring-primary/20 bg-primary/5' : ''}`}>
