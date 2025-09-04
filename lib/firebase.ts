@@ -146,17 +146,31 @@ export class FirebaseService {
   }
 
   static async getPromptsByUserId(userId: string, limit = 50, lastDoc?: any) {
-    let query = adminDb.collection(collections.prompts)
-      .where('userId', '==', userId)
-      .orderBy('updatedAt', 'desc')
-      .limit(limit)
+    try {
+      // Try the optimized query with orderBy first
+      let query = adminDb.collection(collections.prompts)
+        .where('userId', '==', userId)
+        .orderBy('updatedAt', 'desc')
+        .limit(limit)
 
-    if (lastDoc) {
-      query = query.startAfter(lastDoc)
+      if (lastDoc) {
+        query = query.startAfter(lastDoc)
+      }
+
+      const snapshot = await query.get()
+      return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as PromptDoc))
+    } catch (error: any) {
+      // If the composite index doesn't exist, fallback to simple query
+      console.warn('Index error detected, using fallback query:', error.message)
+      const snapshot = await adminDb.collection(collections.prompts)
+        .where('userId', '==', userId)
+        .limit(limit)
+        .get()
+      
+      // Sort in memory (not ideal for large datasets, but works for now)
+      const docs = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as PromptDoc))
+      return docs.sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())
     }
-
-    const snapshot = await query.get()
-    return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as PromptDoc))
   }
 
   static async updatePrompt(id: string, updates: Partial<PromptDoc>) {
