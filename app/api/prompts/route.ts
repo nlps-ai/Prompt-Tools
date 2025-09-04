@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { z } from 'zod'
-import { prisma } from '@/lib/prisma'
+import { FirebaseService } from '@/lib/firebase'
 import { authOptions } from '@/lib/auth'
 
 // 创建 Prompt 的验证 Schema
@@ -35,61 +35,78 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url)
     const query = querySchema.parse(Object.fromEntries(searchParams))
 
-    const where: any = {
-      userId: session.user.id,
+    let prompts = []
+
+    // 获取用户的所有 prompts
+    if (query.search || query.tags) {
+      // 使用搜索功能
+      const tags = query.tags ? query.tags.split(',').filter(Boolean) : undefined
+      prompts = await FirebaseService.searchPrompts(
+        session.user.id,
+        query.search || '',
+        tags,
+        query.limit
+      )
+    } else {
+      // 获取所有 prompts
+      prompts = await FirebaseService.getPromptsByUserId(
+        session.user.id,
+        query.limit
+      )
     }
 
-    // 搜索功能
-    if (query.search) {
-      where.OR = [
-        { name: { contains: query.search, mode: 'insensitive' } },
-        { content: { contains: query.search, mode: 'insensitive' } },
-        { notes: { contains: query.search, mode: 'insensitive' } },
-        { tags: { hasSome: query.search.split(' ') } },
-      ]
-    }
-
-    // 标签筛选
-    if (query.tags) {
-      const tagArray = query.tags.split(',').filter(Boolean)
-      where.tags = { hasSome: tagArray }
-    }
-
-    // 置顶筛选
+    // 筛选置顶状态
     if (query.pinned !== undefined) {
-      where.pinned = query.pinned
+      prompts = prompts.filter(prompt => prompt.pinned === query.pinned)
     }
 
-    const [prompts, total] = await Promise.all([
-      prisma.prompt.findMany({
-        where,
-        include: {
-          currentVersion: {
-            select: {
-              version: true,
-              content: true,
-            },
-          },
+    // 排序
+    prompts.sort((a, b) => {
+      const aValue = a[query.sortBy as keyof typeof a]
+      const bValue = b[query.sortBy as keyof typeof b]
+      
+      if (query.sortBy === 'name') {
+        return query.sortOrder === 'asc' 
+          ? (aValue as string).localeCompare(bValue as string)
+          : (bValue as string).localeCompare(aValue as string)
+      } else {
+        const aTime = (aValue as Date).getTime()
+        const bTime = (bValue as Date).getTime()
+        return query.sortOrder === 'asc' ? aTime - bTime : bTime - aTime
+      }
+    })
+
+    // 获取每个 prompt 的版本信息
+    const promptsWithVersions = await Promise.all(
+      prompts.map(async (prompt) => {
+        const versions = await FirebaseService.getVersionsByPromptId(prompt.id)
+        const currentVersion = versions.find(v => v.id === prompt.currentVersionId) || versions[0]
+        
+        return {
+          ...prompt,
+          currentVersion: currentVersion ? {
+            version: currentVersion.version,
+            content: currentVersion.content,
+          } : null,
           _count: {
-            select: {
-              versions: true,
-            },
+            versions: versions.length,
           },
-        },
-        orderBy: { [query.sortBy]: query.sortOrder },
-        skip: (query.page - 1) * query.limit,
-        take: query.limit,
-      }),
-      prisma.prompt.count({ where }),
-    ])
+        }
+      })
+    )
+
+    // 分页处理
+    const startIndex = (query.page - 1) * query.limit
+    const endIndex = startIndex + query.limit
+    const paginatedPrompts = promptsWithVersions.slice(startIndex, endIndex)
 
     return NextResponse.json({
-      prompts,
+      prompts: paginatedPrompts,
       pagination: {
         page: query.page,
         limit: query.limit,
-        total,
-        pages: Math.ceil(total / query.limit),
+        total: promptsWithVersions.length,
+        pages: Math.ceil(promptsWithVersions.length / query.limit),
       },
     })
   } catch (error) {
@@ -109,40 +126,49 @@ export async function POST(request: NextRequest) {
     const body = await request.json()
     const validatedData = createPromptSchema.parse(body)
 
-    // 开始事务
-    const result = await prisma.$transaction(async (tx) => {
-      // 创建 prompt
-      const prompt = await tx.prompt.create({
-        data: {
-          ...validatedData,
-          userId: session.user!.id,
-        },
-      })
+    // 创建 prompt
+    const prompt = await FirebaseService.createPrompt({
+      name: validatedData.name,
+      source: validatedData.source,
+      notes: validatedData.notes,
+      tags: validatedData.tags,
+      pinned: false,
+      userId: session.user.id,
+    })
 
-      // 创建初始版本
-      const version = await tx.version.create({
-        data: {
-          promptId: prompt.id,
-          version: '1.0.0',
-          content: validatedData.content,
-        },
-      })
+    // 创建初始版本
+    const version = await FirebaseService.createVersion(prompt.id, {
+      version: '1.0.0',
+      content: validatedData.content,
+    })
 
-      // 更新 prompt 的当前版本 ID
-      const updatedPrompt = await tx.prompt.update({
-        where: { id: prompt.id },
-        data: { currentVersionId: version.id },
-        include: {
-          currentVersion: true,
-          _count: {
-            select: {
-              versions: true,
-            },
-          },
-        },
-      })
+    // 更新 prompt 的当前版本 ID
+    const updatedPrompt = await FirebaseService.updatePrompt(prompt.id, {
+      currentVersionId: version.id,
+    })
 
-      return updatedPrompt
+    // 获取版本信息用于返回
+    const versions = await FirebaseService.getVersionsByPromptId(prompt.id)
+    const currentVersion = versions.find(v => v.id === version.id)
+
+    const result = {
+      ...updatedPrompt,
+      currentVersion: currentVersion ? {
+        version: currentVersion.version,
+        content: currentVersion.content,
+      } : null,
+      _count: {
+        versions: versions.length,
+      },
+    }
+
+    // 记录审计日志
+    await FirebaseService.logAction({
+      userId: session.user.id,
+      action: 'CREATE',
+      entity: 'PROMPT',
+      entityId: prompt.id,
+      newData: validatedData,
     })
 
     return NextResponse.json(result, { status: 201 })

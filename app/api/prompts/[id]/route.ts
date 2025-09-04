@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { z } from 'zod'
-import { prisma } from '@/lib/prisma'
+import { FirebaseService } from '@/lib/firebase'
 import { authOptions } from '@/lib/auth'
 
 interface RouteContext {
@@ -47,30 +47,29 @@ export async function GET(request: NextRequest, { params }: RouteContext) {
       return NextResponse.json({ error: '未授权访问' }, { status: 401 })
     }
 
-    const prompt = await prisma.prompt.findFirst({
-      where: {
-        id: params.id,
-        userId: session.user.id,
-      },
-      include: {
-        currentVersion: true,
-        versions: {
-          orderBy: { createdAt: 'desc' },
-          take: 5, // 只返回最近5个版本
-        },
-        _count: {
-          select: {
-            versions: true,
-          },
-        },
-      },
-    })
-
-    if (!prompt) {
+    const prompt = await FirebaseService.getPromptById(params.id)
+    
+    if (!prompt || prompt.userId !== session.user.id) {
       return NextResponse.json({ error: '找不到该 Prompt' }, { status: 404 })
     }
 
-    return NextResponse.json(prompt)
+    // 获取版本信息
+    const versions = await FirebaseService.getVersionsByPromptId(params.id)
+    const currentVersion = versions.find(v => v.id === prompt.currentVersionId) || versions[0]
+    
+    // 只返回最近5个版本
+    const recentVersions = versions.slice(0, 5)
+
+    const result = {
+      ...prompt,
+      currentVersion,
+      versions: recentVersions,
+      _count: {
+        versions: versions.length,
+      },
+    }
+
+    return NextResponse.json(result)
   } catch (error) {
     console.error('获取 prompt 失败:', error)
     return NextResponse.json({ error: '服务器内部错误' }, { status: 500 })
@@ -89,74 +88,88 @@ export async function PUT(request: NextRequest, { params }: RouteContext) {
     const validatedData = updatePromptSchema.parse(body)
 
     // 验证 prompt 所有权
-    const existingPrompt = await prisma.prompt.findFirst({
-      where: {
-        id: params.id,
-        userId: session.user.id,
-      },
-      include: {
-        currentVersion: true,
-      },
-    })
-
-    if (!existingPrompt) {
+    const existingPrompt = await FirebaseService.getPromptById(params.id)
+    if (!existingPrompt || existingPrompt.userId !== session.user.id) {
       return NextResponse.json({ error: '找不到该 Prompt' }, { status: 404 })
     }
 
-    const result = await prisma.$transaction(async (tx) => {
-      // 更新基本信息
-      let updatedPrompt = await tx.prompt.update({
-        where: { id: params.id },
-        data: {
-          name: validatedData.name,
-          source: validatedData.source,
-          notes: validatedData.notes,
-          tags: validatedData.tags,
-        },
+    // 获取当前版本信息
+    const versions = await FirebaseService.getVersionsByPromptId(params.id)
+    const currentVersion = versions.find(v => v.id === existingPrompt.currentVersionId) || versions[0]
+
+    // 保存旧数据用于审计
+    const oldData = {
+      name: existingPrompt.name,
+      source: existingPrompt.source,
+      notes: existingPrompt.notes,
+      tags: existingPrompt.tags,
+      content: currentVersion?.content,
+    }
+
+    let newVersionId = existingPrompt.currentVersionId
+
+    // 如果需要保存为新版本
+    if (validatedData.saveAsVersion) {
+      const currentVersionString = currentVersion?.version || '1.0.0'
+      const newVersionString = bumpVersion(currentVersionString, validatedData.versionType)
+
+      // 创建新版本
+      const newVersion = await FirebaseService.createVersion(params.id, {
+        version: newVersionString,
+        content: validatedData.content,
+        parentVersionId: existingPrompt.currentVersionId,
       })
-
-      // 如果需要保存为新版本
-      if (validatedData.saveAsVersion) {
-        const currentVersion = existingPrompt.currentVersion?.version || '1.0.0'
-        const newVersion = bumpVersion(currentVersion, validatedData.versionType)
-
-        // 创建新版本
-        const version = await tx.version.create({
-          data: {
-            promptId: params.id,
-            version: newVersion,
+      
+      newVersionId = newVersion.id
+    } else {
+      // 仅更新当前版本内容
+      if (existingPrompt.currentVersionId) {
+        // 由于Firebase中版本是子集合，我们需要直接更新文档
+        const { adminDb, collections } = await import('@/lib/firebase')
+        await adminDb
+          .collection(collections.prompts)
+          .doc(params.id)
+          .collection(collections.versions)
+          .doc(existingPrompt.currentVersionId)
+          .update({
             content: validatedData.content,
-            parentVersionId: existingPrompt.currentVersionId,
-          },
-        })
-
-        // 更新当前版本 ID
-        updatedPrompt = await tx.prompt.update({
-          where: { id: params.id },
-          data: { currentVersionId: version.id },
-        })
-      } else {
-        // 仅更新当前版本内容
-        if (existingPrompt.currentVersionId) {
-          await tx.version.update({
-            where: { id: existingPrompt.currentVersionId },
-            data: { content: validatedData.content },
           })
-        }
       }
+    }
 
-      // 获取完整的更新后数据
-      return tx.prompt.findUnique({
-        where: { id: params.id },
-        include: {
-          currentVersion: true,
-          _count: {
-            select: {
-              versions: true,
-            },
-          },
-        },
-      })
+    // 更新基本信息
+    const updatedPrompt = await FirebaseService.updatePrompt(params.id, {
+      name: validatedData.name,
+      source: validatedData.source,
+      notes: validatedData.notes,
+      tags: validatedData.tags,
+      currentVersionId: newVersionId,
+    })
+
+    if (!updatedPrompt) {
+      return NextResponse.json({ error: '更新失败' }, { status: 500 })
+    }
+
+    // 获取完整的更新后数据
+    const updatedVersions = await FirebaseService.getVersionsByPromptId(params.id)
+    const updatedCurrentVersion = updatedVersions.find(v => v.id === updatedPrompt.currentVersionId)
+
+    const result = {
+      ...updatedPrompt,
+      currentVersion: updatedCurrentVersion,
+      _count: {
+        versions: updatedVersions.length,
+      },
+    }
+
+    // 记录审计日志
+    await FirebaseService.logAction({
+      userId: session.user.id,
+      action: 'UPDATE',
+      entity: 'PROMPT',
+      entityId: params.id,
+      oldData,
+      newData: validatedData,
     })
 
     return NextResponse.json(result)
@@ -182,20 +195,21 @@ export async function DELETE(request: NextRequest, { params }: RouteContext) {
     }
 
     // 验证 prompt 所有权
-    const existingPrompt = await prisma.prompt.findFirst({
-      where: {
-        id: params.id,
-        userId: session.user.id,
-      },
-    })
-
-    if (!existingPrompt) {
+    const existingPrompt = await FirebaseService.getPromptById(params.id)
+    if (!existingPrompt || existingPrompt.userId !== session.user.id) {
       return NextResponse.json({ error: '找不到该 Prompt' }, { status: 404 })
     }
 
-    // 删除 prompt（级联删除版本）
-    await prisma.prompt.delete({
-      where: { id: params.id },
+    // 删除 prompt（包括所有版本）
+    await FirebaseService.deletePrompt(params.id)
+
+    // 记录审计日志
+    await FirebaseService.logAction({
+      userId: session.user.id,
+      action: 'DELETE',
+      entity: 'PROMPT',
+      entityId: params.id,
+      oldData: existingPrompt,
     })
 
     return NextResponse.json({ message: '删除成功' })
