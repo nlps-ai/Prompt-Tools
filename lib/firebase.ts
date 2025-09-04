@@ -1,6 +1,7 @@
 import { initializeApp, getApps, cert } from 'firebase-admin/app'
 import { getFirestore } from 'firebase-admin/firestore'
 import { getAuth } from 'firebase-admin/auth'
+import bcrypt from 'bcryptjs'
 
 // Initialize Firebase Admin SDK
 const firebaseAdminConfig = {
@@ -37,8 +38,11 @@ export const collections = {
 export interface UserDoc {
   id: string
   email: string
+  username?: string // For username/password auth
+  hashedPassword?: string // For username/password auth
   name?: string
   image?: string
+  authProvider?: 'oauth' | 'credentials' // Track auth method
   createdAt: Date
   updatedAt: Date
 }
@@ -278,5 +282,133 @@ export class FirebaseService {
     }
     await docRef.set(auditLog)
     return auditLog
+  }
+
+  // Username/Password Authentication Methods
+  static async getUserByUsername(username: string) {
+    const query = await adminDb.collection(collections.users)
+      .where('username', '==', username)
+      .limit(1)
+      .get()
+    
+    return query.empty ? null : { id: query.docs[0].id, ...query.docs[0].data() } as UserDoc
+  }
+
+  static async createUserWithCredentials(userData: {
+    username: string
+    email: string
+    password: string
+    name?: string
+  }) {
+    // Check if username already exists
+    const existingUserByUsername = await this.getUserByUsername(userData.username)
+    if (existingUserByUsername) {
+      throw new Error('用户名已存在')
+    }
+
+    // Check if email already exists
+    const existingUserByEmail = await this.getUserByEmail(userData.email)
+    if (existingUserByEmail) {
+      throw new Error('邮箱已存在')
+    }
+
+    // Hash password
+    const hashedPassword = await bcrypt.hash(userData.password, 12)
+
+    const docRef = adminDb.collection(collections.users).doc()
+    const now = new Date()
+    
+    const user: UserDoc = {
+      id: docRef.id,
+      email: userData.email,
+      username: userData.username,
+      hashedPassword,
+      name: userData.name || userData.username,
+      authProvider: 'credentials',
+      createdAt: now,
+      updatedAt: now,
+    }
+    
+    await docRef.set(user)
+    
+    // Return user without password hash for security
+    const { hashedPassword: _, ...userWithoutPassword } = user
+    return userWithoutPassword
+  }
+
+  static async verifyUserCredentials(usernameOrEmail: string, password: string) {
+    // Try to find user by username first, then by email
+    let user = await this.getUserByUsername(usernameOrEmail)
+    
+    if (!user) {
+      user = await this.getUserByEmail(usernameOrEmail)
+    }
+
+    if (!user || !user.hashedPassword) {
+      return null
+    }
+
+    // Verify password
+    const isValid = await bcrypt.compare(password, user.hashedPassword)
+    if (!isValid) {
+      return null
+    }
+
+    // Return user without password hash for security
+    const { hashedPassword: _, ...userWithoutPassword } = user
+    return userWithoutPassword as Omit<UserDoc, 'hashedPassword'>
+  }
+}
+
+// Authentication utility functions
+export const AuthUtils = {
+  async hashPassword(password: string): Promise<string> {
+    return bcrypt.hash(password, 12)
+  },
+
+  async verifyPassword(password: string, hashedPassword: string): Promise<boolean> {
+    return bcrypt.compare(password, hashedPassword)
+  },
+
+  validateUsername(username: string): { isValid: boolean; error?: string } {
+    if (!username || username.length < 3) {
+      return { isValid: false, error: '用户名至少需要3个字符' }
+    }
+    
+    if (username.length > 20) {
+      return { isValid: false, error: '用户名不能超过20个字符' }
+    }
+    
+    if (!/^[a-zA-Z0-9_\u4e00-\u9fa5]+$/.test(username)) {
+      return { isValid: false, error: '用户名只能包含字母、数字、下划线和中文字符' }
+    }
+    
+    return { isValid: true }
+  },
+
+  validatePassword(password: string): { isValid: boolean; error?: string } {
+    if (!password || password.length < 6) {
+      return { isValid: false, error: '密码至少需要6个字符' }
+    }
+    
+    if (password.length > 100) {
+      return { isValid: false, error: '密码不能超过100个字符' }
+    }
+    
+    return { isValid: true }
+  },
+
+  validateEmail(email: string): { isValid: boolean; error?: string } {
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+    
+    if (!email) {
+      return { isValid: false, error: '邮箱不能为空' }
+    }
+    
+    if (!emailRegex.test(email)) {
+      return { isValid: false, error: '邮箱格式不正确' }
+    }
+    
+    return { isValid: true }
   }
 }

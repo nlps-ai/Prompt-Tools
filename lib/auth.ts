@@ -1,91 +1,82 @@
 import { NextAuthOptions } from 'next-auth'
-import GoogleProvider from 'next-auth/providers/google'
-import EmailProvider from 'next-auth/providers/email'
+import CredentialsProvider from 'next-auth/providers/credentials'
 import { FirebaseService } from '@/lib/firebase'
 
 export const authOptions: NextAuthOptions = {
   providers: [
-    GoogleProvider({
-      clientId: process.env.GOOGLE_CLIENT_ID!,
-      clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
-    }),
-    EmailProvider({
-      server: {
-        host: process.env.EMAIL_SERVER_HOST,
-        port: process.env.EMAIL_SERVER_PORT,
-        auth: {
-          user: process.env.EMAIL_SERVER_USER,
-          pass: process.env.EMAIL_SERVER_PASSWORD,
+    CredentialsProvider({
+      id: 'credentials',
+      name: 'credentials',
+      credentials: {
+        usernameOrEmail: { 
+          label: '用户名或邮箱', 
+          type: 'text', 
+          placeholder: '请输入用户名或邮箱' 
+        },
+        password: { 
+          label: '密码', 
+          type: 'password', 
+          placeholder: '请输入密码' 
         },
       },
-      from: process.env.EMAIL_FROM,
+      async authorize(credentials) {
+        if (!credentials?.usernameOrEmail || !credentials?.password) {
+          return null
+        }
+
+        try {
+          // Verify user credentials using Firebase service
+          const user = await FirebaseService.verifyUserCredentials(
+            credentials.usernameOrEmail,
+            credentials.password
+          )
+
+          if (user) {
+            return {
+              id: user.id,
+              email: user.email,
+              name: user.name || user.username,
+              image: user.image,
+              username: user.username,
+            }
+          }
+
+          return null
+        } catch (error) {
+          console.error('Authentication error:', error)
+          return null
+        }
+      }
     }),
   ],
   pages: {
     signIn: '/auth/signin',
     error: '/auth/error',
-    verifyRequest: '/auth/verify-request',
   },
   session: {
     strategy: 'jwt',
+    maxAge: 30 * 24 * 60 * 60, // 30 days
   },
   callbacks: {
-    async session({ token, session }) {
+    async jwt({ token, user }) {
+      // First time user signs in
+      if (user) {
+        token.id = user.id
+        token.username = (user as any).username
+      }
+      return token
+    },
+    async session({ session, token }) {
       if (token && session.user) {
         session.user.id = token.id as string
         session.user.name = token.name
         session.user.email = token.email
         session.user.image = token.picture
+        // Add username to session
+        ;(session.user as any).username = token.username
       }
       return session
     },
-    async jwt({ token, user, account }) {
-      // First time user signs in
-      if (account && user) {
-        try {
-          // Check if user exists in Firebase
-          let dbUser = await FirebaseService.getUserByEmail(user.email!)
-          
-          if (!dbUser) {
-            // Create new user in Firebase
-            dbUser = await FirebaseService.createUser({
-              email: user.email!,
-              name: user.name,
-              image: user.image,
-            })
-          }
-
-          return {
-            id: dbUser.id,
-            name: dbUser.name,
-            email: dbUser.email,
-            picture: dbUser.image,
-          }
-        } catch (error) {
-          console.error('Error handling user authentication:', error)
-          return token
-        }
-      }
-
-      // For existing sessions, get user from Firebase
-      if (token.email) {
-        try {
-          const dbUser = await FirebaseService.getUserByEmail(token.email)
-          
-          if (dbUser) {
-            return {
-              id: dbUser.id,
-              name: dbUser.name,
-              email: dbUser.email,
-              picture: dbUser.image,
-            }
-          }
-        } catch (error) {
-          console.error('Error fetching user from Firebase:', error)
-        }
-      }
-
-      return token
-    },
   },
+  debug: process.env.NODE_ENV === 'development',
 }
