@@ -135,7 +135,9 @@ export default function PromptDetailPage() {
       if (response.ok) {
         toast.success(prompt.pinned ? '已取消置顶' : '已置顶')
         // Refresh the page
-        window.location.reload()
+        if (typeof window !== 'undefined') {
+          window.location.reload()
+        }
       } else {
         toast.error('操作失败')
       }

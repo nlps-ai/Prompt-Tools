@@ -70,8 +70,9 @@ export async function GET(request: NextRequest) {
           ? (aValue as string).localeCompare(bValue as string)
           : (bValue as string).localeCompare(aValue as string)
       } else {
-        const aTime = (aValue as Date).getTime()
-        const bTime = (bValue as Date).getTime()
+        // Handle date strings from Firestore
+        const aTime = new Date(aValue as string).getTime()
+        const bTime = new Date(bValue as string).getTime()
         return query.sortOrder === 'asc' ? aTime - bTime : bTime - aTime
       }
     })

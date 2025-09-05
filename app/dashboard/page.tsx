@@ -101,7 +101,9 @@ export default function DashboardPage() {
       if (response.ok) {
         toast.success('提示词已删除')
         // Refetch data
-        window.location.reload()
+        if (typeof window !== 'undefined') {
+          window.location.reload()
+        }
       } else {
         toast.error('删除失败')
       }
@@ -122,7 +124,9 @@ export default function DashboardPage() {
 
       if (response.ok) {
         toast.success('操作成功')
-        window.location.reload()
+        if (typeof window !== 'undefined') {
+          window.location.reload()
+        }
       } else {
         toast.error('操作失败')
       }
