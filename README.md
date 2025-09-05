@@ -2,6 +2,20 @@
 
 A professional AI prompt management platform built with Next.js 14 and Firebase. Organize, optimize, and manage your AI prompts with enterprise-grade features including version control, AI-powered optimization, and comprehensive user management.
 
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/your-username/prompt-tools&env=NEXTAUTH_URL,NEXTAUTH_SECRET,FIREBASE_PROJECT_ID,FIREBASE_CLIENT_EMAIL,FIREBASE_PRIVATE_KEY,ZHIPU_AI_KEY&envDescription=Required%20environment%20variables%20for%20the%20application&envLink=https://github.com/your-username/prompt-tools#environment-variables&project-name=prompt-tools&repository-name=prompt-tools)
+
+## 📋 Table of Contents
+
+- [Features](#features)
+- [Tech Stack](#tech-stack)
+- [Quick Start](#quick-start)
+- [Project Structure](#project-structure)
+- [Configuration](#configuration)
+- [API Documentation](#api-documentation)
+- [🚀 **Deploy to Vercel**](#deploy-to-vercel) ⭐
+- [Development](#development)
+- [Contributing](#contributing)
+
 ## ✨ Features
 
 ### 🎯 Core Functionality
@@ -198,10 +212,63 @@ firebase deploy --only firestore:indexes
 
 ## 🚀 Deployment
 
-### Vercel (Recommended)
-1. **Connect your repository** to Vercel
-2. **Configure environment variables** in Vercel dashboard
-3. **Deploy** automatically on push to main branch
+### Vercel (Recommended) {#deploy-to-vercel}
+
+#### Method 1: One-Click Deploy
+Click the button below to deploy directly to Vercel:
+
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/your-username/prompt-tools&env=NEXTAUTH_URL,NEXTAUTH_SECRET,FIREBASE_PROJECT_ID,FIREBASE_CLIENT_EMAIL,FIREBASE_PRIVATE_KEY,ZHIPU_AI_KEY&envDescription=Required%20environment%20variables%20for%20the%20application&envLink=https://github.com/your-username/prompt-tools#environment-variables&project-name=prompt-tools&repository-name=prompt-tools)
+
+#### Method 2: Manual Deployment
+
+1. **Fork or Clone Repository**
+   ```bash
+   git clone https://github.com/your-username/prompt-tools.git
+   cd prompt-tools
+   ```
+
+2. **Connect to Vercel**
+   - Go to [Vercel Dashboard](https://vercel.com/dashboard)
+   - Click "New Project"
+   - Import your GitHub repository
+   - Select "prompt-tools" project
+
+3. **Configure Environment Variables**
+   In Vercel dashboard, go to Settings → Environment Variables and add:
+   ```env
+   NEXTAUTH_URL=https://your-app-name.vercel.app
+   NEXTAUTH_SECRET=your-nextauth-secret-key
+   FIREBASE_PROJECT_ID=your-firebase-project-id
+   FIREBASE_CLIENT_EMAIL=your-service-account-email
+   FIREBASE_PRIVATE_KEY="your-private-key-with-newlines"
+   ZHIPU_AI_KEY=your-zhipu-ai-api-key
+   ```
+
+4. **Deploy**
+   - Click "Deploy" button
+   - Vercel will automatically build and deploy your application
+   - Your app will be available at `https://your-app-name.vercel.app`
+
+#### Vercel Configuration Tips
+
+- **Build Settings**: Vercel automatically detects Next.js projects
+- **Node.js Version**: Uses Node.js 18.x by default (compatible)
+- **Build Command**: `npm run build` (automatically detected)
+- **Output Directory**: `.next` (automatically detected)
+- **Install Command**: `npm install` (automatically detected)
+
+#### Environment Variables Setup
+For `FIREBASE_PRIVATE_KEY`, make sure to:
+1. Keep the quotes around the entire key
+2. Preserve the `\n` newline characters
+3. Example format: `"-----BEGIN PRIVATE KEY-----\nMIIE...\n-----END PRIVATE KEY-----\n"`
+
+#### Custom Domain (Optional)
+1. Go to your project settings in Vercel
+2. Navigate to "Domains" section  
+3. Add your custom domain
+4. Update `NEXTAUTH_URL` to your custom domain
+5. Configure DNS records as instructed by Vercel
 
 ### Other Platforms
 The application can be deployed to any Node.js hosting platform:

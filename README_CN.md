@@ -2,6 +2,20 @@
 
 基于 Next.js 14 和 Firebase 构建的专业 AI 提示词管理平台。提供企业级功能，包括版本控制、AI 智能优化和完善的用户管理系统，让您轻松组织、优化和管理 AI 提示词。
 
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/your-username/prompt-tools&env=NEXTAUTH_URL,NEXTAUTH_SECRET,FIREBASE_PROJECT_ID,FIREBASE_CLIENT_EMAIL,FIREBASE_PRIVATE_KEY,ZHIPU_AI_KEY&envDescription=应用程序所需的环境变量&envLink=https://github.com/your-username/prompt-tools#environment-variables&project-name=prompt-tools&repository-name=prompt-tools)
+
+## 📋 目录
+
+- [功能特色](#功能特色)
+- [技术栈](#技术栈)
+- [快速开始](#快速开始)
+- [项目结构](#项目结构)
+- [配置说明](#配置说明)
+- [API 文档](#api-文档)
+- [🚀 **部署到 Vercel**](#deploy-to-vercel) ⭐
+- [开发指南](#开发指南)
+- [贡献指南](#贡献指南)
+
 ## ✨ 功能特色
 
 ### 🎯 核心功能
@@ -198,10 +212,63 @@ firebase deploy --only firestore:indexes
 
 ## 🚀 部署指南
 
-### Vercel 部署（推荐）
-1. **连接仓库** 到 Vercel
-2. **配置环境变量** 在 Vercel 控制面板中设置
-3. **自动部署** 推送到主分支时自动部署
+### Vercel 部署（推荐） {#deploy-to-vercel}
+
+#### 方式一：一键部署
+点击下面的按钮直接部署到 Vercel：
+
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/your-username/prompt-tools&env=NEXTAUTH_URL,NEXTAUTH_SECRET,FIREBASE_PROJECT_ID,FIREBASE_CLIENT_EMAIL,FIREBASE_PRIVATE_KEY,ZHIPU_AI_KEY&envDescription=应用程序所需的环境变量&envLink=https://github.com/your-username/prompt-tools#environment-variables&project-name=prompt-tools&repository-name=prompt-tools)
+
+#### 方式二：手动部署
+
+1. **克隆或 Fork 仓库**
+   ```bash
+   git clone https://github.com/your-username/prompt-tools.git
+   cd prompt-tools
+   ```
+
+2. **连接到 Vercel**
+   - 访问 [Vercel 控制面板](https://vercel.com/dashboard)
+   - 点击 "New Project"
+   - 导入你的 GitHub 仓库
+   - 选择 "prompt-tools" 项目
+
+3. **配置环境变量**
+   在 Vercel 控制面板中，转到设置 → 环境变量并添加：
+   ```env
+   NEXTAUTH_URL=https://your-app-name.vercel.app
+   NEXTAUTH_SECRET=your-nextauth-secret-key
+   FIREBASE_PROJECT_ID=your-firebase-project-id
+   FIREBASE_CLIENT_EMAIL=your-service-account-email
+   FIREBASE_PRIVATE_KEY="your-private-key-with-newlines"
+   ZHIPU_AI_KEY=your-zhipu-ai-api-key
+   ```
+
+4. **部署**
+   - 点击 "Deploy" 按钮
+   - Vercel 将自动构建和部署你的应用程序
+   - 你的应用将在 `https://your-app-name.vercel.app` 可用
+
+#### Vercel 配置技巧
+
+- **构建设置**：Vercel 自动检测 Next.js 项目
+- **Node.js 版本**：默认使用 Node.js 18.x（兼容）
+- **构建命令**：`npm run build`（自动检测）
+- **输出目录**：`.next`（自动检测）
+- **安装命令**：`npm install`（自动检测）
+
+#### 环境变量设置
+对于 `FIREBASE_PRIVATE_KEY`，确保：
+1. 保留整个密钥周围的引号
+2. 保留 `\n` 换行符
+3. 示例格式：`"-----BEGIN PRIVATE KEY-----\nMIIE...\n-----END PRIVATE KEY-----\n"`
+
+#### 自定义域名（可选）
+1. 在 Vercel 项目设置中
+2. 导航到 "Domains" 部分
+3. 添加你的自定义域名
+4. 将 `NEXTAUTH_URL` 更新为你的自定义域名
+5. 按照 Vercel 指示配置 DNS 记录
 
 ### 其他平台
 应用可部署到任何 Node.js 托管平台：
