@@ -30,16 +30,12 @@ export async function PUT(request: NextRequest) {
     }
 
     // Update user profile
-    const updatedUser = await FirebaseService.updateUser(session.user.id, {
+    await FirebaseService.updateUser(session.user.id, {
       name: validatedData.name,
       email: validatedData.email,
       bio: validatedData.bio,
       updatedAt: new Date(),
     })
-
-    if (!updatedUser) {
-      return NextResponse.json({ error: '更新失败' }, { status: 500 })
-    }
 
     return NextResponse.json({ message: '个人资料已更新' })
   } catch (error) {

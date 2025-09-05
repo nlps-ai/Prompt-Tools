@@ -28,9 +28,13 @@ export async function PUT(request: NextRequest) {
     }
 
     // Verify current password
+    if (!userData.hashedPassword) {
+      return NextResponse.json({ error: '用户密码未设置' }, { status: 400 })
+    }
+    
     const isCurrentPasswordValid = await bcrypt.compare(
       validatedData.currentPassword, 
-      userData.password
+      userData.hashedPassword
     )
     
     if (!isCurrentPasswordValid) {
@@ -41,14 +45,10 @@ export async function PUT(request: NextRequest) {
     const hashedNewPassword = await bcrypt.hash(validatedData.newPassword, 12)
 
     // Update password
-    const updatedUser = await FirebaseService.updateUser(session.user.id, {
-      password: hashedNewPassword,
+    await FirebaseService.updateUser(session.user.id, {
+      hashedPassword: hashedNewPassword,
       updatedAt: new Date(),
     })
-
-    if (!updatedUser) {
-      return NextResponse.json({ error: '密码更新失败' }, { status: 500 })
-    }
 
     return NextResponse.json({ message: '密码已更新' })
   } catch (error) {

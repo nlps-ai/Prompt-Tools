@@ -40,7 +40,9 @@ export interface UserDoc {
   email: string
   username?: string // For username/password auth
   hashedPassword?: string // For username/password auth
+  password?: string // For backward compatibility with API calls
   name?: string
+  bio?: string // User biography
   image?: string
   authProvider?: 'oauth' | 'credentials' // Track auth method
   createdAt: Date
@@ -202,6 +204,39 @@ export class FirebaseService {
     // Delete the prompt
     batch.delete(adminDb.collection(collections.prompts).doc(id))
     await batch.commit()
+  }
+
+  // User Management Methods
+  static async updateUser(id: string, updates: Partial<UserDoc>) {
+    const docRef = adminDb.collection(collections.users).doc(id)
+    const updateData = {
+      ...updates,
+      updatedAt: new Date(),
+    }
+    await docRef.update(updateData)
+  }
+
+  static async deleteUser(userId: string) {
+    // Delete all user's prompts first
+    const userPrompts = await this.getPromptsByUserId(userId, 1000)
+    const batch = adminDb.batch()
+    
+    // Delete all prompts
+    userPrompts.forEach(prompt => {
+      const promptRef = adminDb.collection(collections.prompts).doc(prompt.id)
+      batch.delete(promptRef)
+    })
+    
+    // Delete user
+    const userRef = adminDb.collection(collections.users).doc(userId)
+    batch.delete(userRef)
+    
+    await batch.commit()
+  }
+
+  static async deleteVersion(versionId: string) {
+    const docRef = adminDb.collection(collections.versions).doc(versionId)
+    await docRef.delete()
   }
 
   // Version operations (subcollection under prompts)

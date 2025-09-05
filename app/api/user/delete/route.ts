@@ -29,12 +29,8 @@ export async function DELETE(request: NextRequest) {
     }
 
     // Delete the user account
-    const deletedUser = await FirebaseService.deleteUser(session.user.id)
+    await FirebaseService.deleteUser(session.user.id)
     
-    if (!deletedUser) {
-      return NextResponse.json({ error: '账户删除失败' }, { status: 500 })
-    }
-
     return NextResponse.json({ 
       message: '账户及所有相关数据已成功删除',
       deletedAt: new Date().toISOString(),
